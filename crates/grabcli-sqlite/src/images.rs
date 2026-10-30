@@ -268,12 +268,18 @@ mod tests {
         assert_eq!(a.path, b.path);
         assert_eq!((a.width, a.height), (Some(3), Some(2)));
         assert!(exists(&a));
-        assert!(a.path.clone().unwrap_or_default().to_string_lossy().contains(&format!(
-            "images/{}/{}/{}.png",
-            &a.hash[0..2],
-            &a.hash[2..4],
-            a.hash
-        )));
+        assert!(
+            a.path
+                .clone()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .contains(&format!(
+                    "images/{}/{}/{}.png",
+                    &a.hash[0..2],
+                    &a.hash[2..4],
+                    a.hash
+                ))
+        );
         let s = c.stats_at(11)?;
         assert_eq!((s.images.files, s.images.urls), (1, 2));
         assert_eq!(s.images.bytes, bytes.len() as u64);
@@ -284,7 +290,13 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(a.path.clone().unwrap_or_default())?.permissions().mode() & 0o777, 0o600);
+            assert_eq!(
+                fs::metadata(a.path.clone().unwrap_or_default())?
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
         }
         Ok(())
     }

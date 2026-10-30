@@ -291,24 +291,26 @@ pub async fn local_listing(
     let cache = ctx.cache();
     let near = near(loc, opts);
     let text = src.local_text();
-    let hits = cache.search_restaurants(&RestaurantQuery {
-        text: text.clone(),
-        near: Some(near),
-        namespace: Some(index::NAMESPACE.into()),
-        limit: None,
-    })
-    .await?;
-    let mut merchants: Vec<Merchant> = hits.iter().map(index::merchant_from_hit).collect();
-    if with_dishes && let Some(t) = text {
-        let items = cache.search_items(&ItemQuery {
-            text: Some(t),
+    let hits = cache
+        .search_restaurants(&RestaurantQuery {
+            text: text.clone(),
             near: Some(near),
-            max_price_minor: max_price.map(Money::minor),
-            available_only: false,
-            restaurant_id: None,
-            limit: Some(500),
+            namespace: Some(index::NAMESPACE.into()),
+            limit: None,
         })
         .await?;
+    let mut merchants: Vec<Merchant> = hits.iter().map(index::merchant_from_hit).collect();
+    if with_dishes && let Some(t) = text {
+        let items = cache
+            .search_items(&ItemQuery {
+                text: Some(t),
+                near: Some(near),
+                max_price_minor: max_price.map(Money::minor),
+                available_only: false,
+                restaurant_id: None,
+                limit: Some(500),
+            })
+            .await?;
         for it in &items {
             let dish = index::dish_from_hit(it);
             if let Some(m) = merchants.iter_mut().find(|m| m.id == dish.merchant_id) {

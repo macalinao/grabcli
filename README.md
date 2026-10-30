@@ -461,10 +461,11 @@ confirmation.
 ## Layout
 
 ```
-crates/grabcli-core   shared: config, session, auth/hydra, HTTP allowlist, SQLite cache (responses, catalog, images), money, output
-crates/grabfood       GrabFood API + `grab food` subcommands (discover/browse/index: listings, filters, catalog)
-crates/grabmart       GrabMart API (reCAPTCHA via CDP) + `grab mart` subcommands
-crates/grabcli        the `grab` binary; composes services
+crates/grabcli-core   shared: config, session + SessionStore, auth/hydra, HTTP allowlist, Cache trait, money (no storage)
+crates/grabfood       GrabFood typed API (browse, menu, cart, quote, vouchers, order, track, history)
+crates/grabmart       GrabMart API client (reCAPTCHA via CDP), models, cart, quote
+crates/grabcli-sqlite SQLite cache backend (responses, catalog, images)
+crates/grabcli        the `grab` binary: commands, printing, files (session.json, carts) and the SQLite cache
 docs/hydra.md         the hydra device JWT: what it is and how we mint it
 docs/checkout.md      the order-submission request, from reading the web app
 docs/discovery.md     discovery endpoints (search/category/shortcuts/recommended) and how the CLI uses them

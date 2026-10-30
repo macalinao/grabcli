@@ -729,9 +729,7 @@ mod tests {
         c.index_restaurants_at(&[a], None, 100)?;
         // A sparser row (no cuisines/rating) doesn't erase them.
         c.index_restaurants_at(&[rest("A", "Cafe Kanto Branch", &[])], None, 200)?;
-        let hit = c
-            .restaurant("A")?
-            .ok_or_else(|| Error::not_found("A"))?;
+        let hit = c.restaurant("A")?.ok_or_else(|| Error::not_found("A"))?;
         assert_eq!(hit.row.name, "Cafe Kanto Branch");
         assert_eq!(hit.row.cuisines, vec!["Filipino", "Sisig"]);
         assert_eq!(hit.row.rating, Some(4.5));

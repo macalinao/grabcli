@@ -280,12 +280,14 @@ async fn import_address(out: Output, base: &str) -> Result<()> {
 }
 
 fn import_from(out: Output, path: std::path::PathBuf) -> Result<()> {
-    let session = FileSessionStore { path: path.clone() }.require().map_err(|e| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!("could not read {}: {}", path.display(), e.message),
-        )
-    })?;
+    let session = FileSessionStore { path: path.clone() }
+        .require()
+        .map_err(|e| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                format!("could not read {}: {}", path.display(), e.message),
+            )
+        })?;
     FileSessionStore::default_path()?.write(&session)?;
     if out.is_json() {
         out.json(&json!({"imported": true, "cookies": session.cookies.len(), "source": path.display().to_string()}));

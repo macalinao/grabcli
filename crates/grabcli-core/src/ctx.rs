@@ -480,7 +480,8 @@ mod tests {
     #[tokio::test]
     async fn hydra_mint_is_saved_through_the_store() -> Result<()> {
         let mut rng = rsa::rand_core::OsRng;
-        let key = rsa::RsaPrivateKey::new(&mut rng, 2048).map_err(|e| Error::invalid(e.to_string()))?;
+        let key =
+            rsa::RsaPrivateKey::new(&mut rng, 2048).map_err(|e| Error::invalid(e.to_string()))?;
         let pem = key
             .to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)
             .map_err(|e| Error::invalid(e.to_string()))?

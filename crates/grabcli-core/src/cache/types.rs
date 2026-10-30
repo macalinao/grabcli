@@ -175,4 +175,3 @@ pub fn effective_price(it: &ItemRow) -> Option<i64> {
         (_, p) => p,
     }
 }
-

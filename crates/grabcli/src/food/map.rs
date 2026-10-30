@@ -11,9 +11,9 @@ use std::f64::consts::PI;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::paths;
 use ab_glyph::{FontRef, PxScale};
 use grabcli_core::error::{Error, ErrorKind, Result};
-use crate::paths;
 use image::{Rgba, RgbaImage};
 use imageproc::drawing;
 

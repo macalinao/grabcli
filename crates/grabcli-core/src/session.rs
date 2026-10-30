@@ -579,7 +579,8 @@ mod tests {
     fn sso_expiry_from_cookie() {
         let mut s = sample();
         assert_eq!(s.sso_expires_at(), None);
-        s.cookies.push(ck("grabid-openid-authn-ck", ".grab.com", 1_900_000_000.0));
+        s.cookies
+            .push(ck("grabid-openid-authn-ck", ".grab.com", 1_900_000_000.0));
         assert_eq!(s.sso_expires_at(), Some(1_900_000_000));
     }
 

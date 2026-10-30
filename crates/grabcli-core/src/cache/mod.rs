@@ -377,7 +377,6 @@ pub fn is_fresh(fetched_at: i64, expires_at: i64, ttl_secs: u64, now: i64) -> bo
     now >= fetched_at && now < expires_at && now - fetched_at < ttl
 }
 
-
 /// One stored response, as a backend keeps it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CacheEntry {
@@ -840,13 +839,19 @@ mod tests {
         c.put(&k, &json!("a string")).await?;
         assert_eq!(c.get::<Vec<u32>>(&k).await, None);
         // A hash collision / tampered identity is a miss.
-        let mut e = mem.get_entry(&k).await?.ok_or_else(|| Error::invalid("none"))?;
+        let mut e = mem
+            .get_entry(&k)
+            .await?
+            .ok_or_else(|| Error::invalid("none"))?;
         e.identity = "something else".into();
         mem.put_entry(&k, &e).await?;
         assert_eq!(c.get::<Value>(&k).await, None);
         // Unparseable body: a miss.
         c.put(&k, &json!(1)).await?;
-        let mut e = mem.get_entry(&k).await?.ok_or_else(|| Error::invalid("none"))?;
+        let mut e = mem
+            .get_entry(&k)
+            .await?
+            .ok_or_else(|| Error::invalid("none"))?;
         e.body = "{nope".into();
         mem.put_entry(&k, &e).await?;
         assert_eq!(c.get::<Value>(&k).await, None);
@@ -878,7 +883,11 @@ mod tests {
         assert_eq!(v, json!(2));
         assert_eq!(normal.get::<Value>(&k).await, Some(json!(1)));
         assert!(off.lookup_stale::<Value>(&k).await.is_none());
-        assert!(off.store_image("https://food-cms.grab.com/x.png", b"x", "image/png").await.is_err());
+        assert!(
+            off.store_image("https://food-cms.grab.com/x.png", b"x", "image/png")
+                .await
+                .is_err()
+        );
 
         // Refresh: always fetches, overwrites the entry.
         let refresh = normal.with_mode(CacheMode::Refresh);
@@ -910,7 +919,8 @@ mod tests {
             name: "Sisig Place".into(),
             ..RestaurantRow::default()
         };
-        off.index_restaurants(std::slice::from_ref(&row), None).await?;
+        off.index_restaurants(std::slice::from_ref(&row), None)
+            .await?;
         assert!(mem.restaurant("R1").await?.is_none());
         normal.index_restaurants(&[row], None).await?;
         assert!(off.restaurant("R1").await?.is_some());

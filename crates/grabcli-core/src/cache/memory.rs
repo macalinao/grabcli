@@ -96,7 +96,12 @@ impl MemoryCache {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    fn upsert_restaurant(st: &mut State, r: &RestaurantRow, seen_from: Option<(f64, f64)>, now: i64) {
+    fn upsert_restaurant(
+        st: &mut State,
+        r: &RestaurantRow,
+        seen_from: Option<(f64, f64)>,
+        now: i64,
+    ) {
         let row = match st.restaurants.get(&r.id) {
             Some((old, _)) => merge_restaurant(r.clone(), old),
             None => r.clone(),
@@ -214,10 +219,8 @@ impl Cache for MemoryCache {
             .insert(restaurant.id.clone(), categories.to_vec());
         st.items.retain(|(rid, _), _| rid != &restaurant.id);
         for it in items.iter().filter(|i| !i.id.is_empty()) {
-            st.items.insert(
-                (restaurant.id.clone(), it.id.clone()),
-                (it.clone(), now),
-            );
+            st.items
+                .insert((restaurant.id.clone(), it.id.clone()), (it.clone(), now));
         }
         Ok(())
     }
@@ -254,14 +257,22 @@ impl Cache for MemoryCache {
         let mut hits: Vec<ItemHit> = st
             .items
             .values()
-            .filter(|(it, _)| q.restaurant_id.as_ref().is_none_or(|r| &it.restaurant_id == r))
+            .filter(|(it, _)| {
+                q.restaurant_id
+                    .as_ref()
+                    .is_none_or(|r| &it.restaurant_id == r)
+            })
             .filter(|(it, _)| !q.available_only || it.available != Some(false))
             .filter(|(it, _)| {
                 q.max_price_minor
                     .is_none_or(|m| effective_price(it).is_some_and(|p| p <= m))
             })
             .filter(|(it, _)| {
-                let text = format!("{} {}", it.name, it.description.as_deref().unwrap_or_default());
+                let text = format!(
+                    "{} {}",
+                    it.name,
+                    it.description.as_deref().unwrap_or_default()
+                );
                 words_match(&terms, &text)
             })
             .filter_map(|(it, at)| {
@@ -276,7 +287,12 @@ impl Cache for MemoryCache {
                 })
             })
             .collect();
-        hits.sort_by_key(|h| (effective_price(&h.item).unwrap_or(i64::MAX), h.item.id.clone()));
+        hits.sort_by_key(|h| {
+            (
+                effective_price(&h.item).unwrap_or(i64::MAX),
+                h.item.id.clone(),
+            )
+        });
         if let Some(l) = q.limit {
             hits.truncate(l);
         }
@@ -415,7 +431,11 @@ mod tests {
         };
         let hits = c.search_restaurants(&q("sisig", Some(near))).await?;
         assert_eq!(hits[0].row.distance_km, Some(1.5));
-        assert!(c.search_restaurants(&q("ramen", Some(near))).await?.is_empty());
+        assert!(
+            c.search_restaurants(&q("ramen", Some(near)))
+                .await?
+                .is_empty()
+        );
 
         let item = |id: &str, price: i64| ItemRow {
             id: id.into(),
@@ -443,8 +463,14 @@ mod tests {
         assert_eq!(items[0].item.id, "1");
         assert!(items[0].restaurant.is_some());
         // A new menu drops items no longer on it.
-        c.index_menu(&rest("A", "Sisig Hooray", &[]), &[], &[item("2", 30_000)], None, 40)
-            .await?;
+        c.index_menu(
+            &rest("A", "Sisig Hooray", &[]),
+            &[],
+            &[item("2", 30_000)],
+            None,
+            40,
+        )
+        .await?;
         let all = c.search_items(&ItemQuery::default()).await?;
         assert_eq!(all.len(), 1);
         Ok(())

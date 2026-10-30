@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use grabcli_core::Context;
 use grabcli_core::cache::{Cache, CacheMode, NO_CACHE_ENV};
 use grabcli_core::config::Config;
 use grabcli_core::error::{Error, ErrorKind, Result};
@@ -13,7 +14,6 @@ use grabcli_core::http::Allowlist;
 use grabcli_core::login::{PendingLogin, SendBudget, SendLog};
 use grabcli_core::session::Session;
 use grabcli_core::store::SessionStore;
-use grabcli_core::Context;
 use grabcli_sqlite::SqliteCache;
 
 use crate::paths;
@@ -174,10 +174,7 @@ pub fn sqlite_cache(config: &Config) -> Option<SqliteCache> {
 /// A context over the CLI's files: config, `session.json`, the SQLite cache
 /// (in `mode`, after `GRAB_NO_CACHE`), the hydra key and the allowlist
 /// `allow` builds from the config.
-pub async fn context(
-    allow: impl FnOnce(&Config) -> Allowlist,
-    mode: CacheMode,
-) -> Result<Context> {
+pub async fn context(allow: impl FnOnce(&Config) -> Allowlist, mode: CacheMode) -> Result<Context> {
     let config = load_config()?;
     let allow = allow(&config);
     let store = FileSessionStore::default_path()?;
@@ -185,7 +182,10 @@ pub async fn context(
     store.require()?;
     let (cache, mode): (Arc<dyn Cache>, CacheMode) = match sqlite_cache(&config) {
         Some(c) => (Arc::new(c), cache_mode(mode)),
-        None => (Arc::new(grabcli_core::cache::memory::NoCache), CacheMode::Off),
+        None => (
+            Arc::new(grabcli_core::cache::memory::NoCache),
+            CacheMode::Off,
+        ),
     };
     let key = hydra_key(&config);
     Ok(Context::new(config, Arc::new(store), cache)
@@ -206,7 +206,10 @@ mod tests {
             path: dir.path().join("sub").join("session.json"),
         };
         assert!(store.load().await?.is_none());
-        assert_eq!(store.require().err().map(|e| e.kind), Some(ErrorKind::AuthMissing));
+        assert_eq!(
+            store.require().err().map(|e| e.kind),
+            Some(ErrorKind::AuthMissing)
+        );
         let s = Session {
             web_app_version: Some("v1".into()),
             ..Session::default()

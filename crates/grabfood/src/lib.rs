@@ -121,8 +121,7 @@ pub async fn menu_meta(
                 other => other?,
             };
             if !fetched.is_cached() {
-                index::index_menu(ctx.cache(), &fetched.value, (loc.latitude, loc.longitude))
-                    .await;
+                index::index_menu(ctx.cache(), &fetched.value, (loc.latitude, loc.longitude)).await;
             }
             fetched
         }

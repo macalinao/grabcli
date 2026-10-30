@@ -451,7 +451,9 @@ mod tests {
         let broken = handle(&cache(&file));
         assert_eq!(broken.get::<Value>(&key()).await, None);
         assert!(broken.put(&key(), &json!(1)).await.is_err());
-        let v: Value = broken.get_or_fetch(&key(), || async { Ok(json!(2)) }).await?;
+        let v: Value = broken
+            .get_or_fetch(&key(), || async { Ok(json!(2)) })
+            .await?;
         assert_eq!(v, json!(2));
         Ok(())
     }
@@ -518,5 +520,4 @@ mod tests {
         );
         Ok(())
     }
-
 }

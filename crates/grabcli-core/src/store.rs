@@ -98,7 +98,10 @@ mod tests {
             ..Session::default()
         };
         store.save(&s).await?;
-        let back = store.load().await?.ok_or_else(|| crate::Error::invalid("none"))?;
+        let back = store
+            .load()
+            .await?
+            .ok_or_else(|| crate::Error::invalid("none"))?;
         assert_eq!(back.web_app_version.as_deref(), Some("v1"));
         Ok(())
     }

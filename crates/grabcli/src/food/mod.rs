@@ -289,7 +289,8 @@ pub async fn run(out: Output, cache: CacheMode, cmd: FoodCmd) -> Result<()> {
                 let ds = opts.dishes(&listing.merchants, max_price);
                 print::dishes(out, &listing, &ds);
             } else {
-                let ms = browse::filter_dish_price(opts.apply(listing.merchants.clone()), max_price);
+                let ms =
+                    browse::filter_dish_price(opts.apply(listing.merchants.clone()), max_price);
                 print::merchants(out, &listing, &ms, true);
             }
             Ok(())
@@ -422,7 +423,12 @@ async fn menu_cmd(out: Output, cache: CacheMode, merchant_id: &str, images: bool
         out.json(&j);
         return Ok(());
     }
-    print::menu_human(out, menu, fetched.age_secs(), images.then_some(image_errors));
+    print::menu_human(
+        out,
+        menu,
+        fetched.age_secs(),
+        images.then_some(image_errors),
+    );
     Ok(())
 }
 
@@ -770,8 +776,8 @@ async fn history_sync(out: Output, vault: &std::path::Path, limit: u32) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
-    use grabfood::discover;
     use bpaf::Parser;
+    use grabfood::discover;
 
     fn parser() -> impl Parser<FoodCmd> {
         food_cmd()

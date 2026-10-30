@@ -1076,7 +1076,10 @@ pub enum LoginState {
         error: Option<String>,
     },
     /// An approval request went to the Grab app: call [`LoginDriver::poll`].
-    AwaitingApproval { phone_masked: String, expires_at: i64 },
+    AwaitingApproval {
+        phone_masked: String,
+        expires_at: i64,
+    },
     /// Logged in. The session holds the captured cookies; nothing was saved
     /// anywhere: persist it through your own store.
     Done(Session),
@@ -1341,8 +1344,7 @@ mod tests {
         );
         // Older pending files (before the flag) keep copying the address.
         let mut v = serde_json::to_value(&p)?;
-        v.as_object_mut()
-            .map(|o| o.remove("copy_browser_address"));
+        v.as_object_mut().map(|o| o.remove("copy_browser_address"));
         assert!(serde_json::from_value::<PendingLogin>(v)?.copy_browser_address);
         Ok(())
     }
@@ -1403,7 +1405,10 @@ mod tests {
         assert!(matches!(d.state(), LoginState::Failed(_)));
         assert!(b.snapshot().sends.is_empty());
         // Steps on a terminal driver are no-ops.
-        assert!(matches!(d.submit_code("123456").await, LoginState::Failed(_)));
+        assert!(matches!(
+            d.submit_code("123456").await,
+            LoginState::Failed(_)
+        ));
         assert!(matches!(d.cancel().await, LoginState::Failed(_)));
         assert!(d.into_session().is_none());
     }

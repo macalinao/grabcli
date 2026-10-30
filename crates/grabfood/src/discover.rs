@@ -501,7 +501,10 @@ pub struct ListOpts {
     #[cfg_attr(feature = "cli", bpaf(long("type"), argument("TYPE")))]
     pub business_type: Option<BizType>,
     /// relevance (default), rating, eta, fee, distance or price.
-    #[cfg_attr(feature = "cli", bpaf(long("sort"), argument("KEY"), fallback(Sort::Relevance)))]
+    #[cfg_attr(
+        feature = "cli",
+        bpaf(long("sort"), argument("KEY"), fallback(Sort::Relevance))
+    )]
     pub sort: Sort,
     /// Show at most N results.
     #[cfg_attr(feature = "cli", bpaf(long("limit"), argument("N")))]

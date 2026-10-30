@@ -5,11 +5,11 @@
 //! session's `location` cookie locally; nothing on Grab's side changes.
 
 use bpaf::Bpaf;
+use grabcli_core::cache::CacheMode;
 use grabcli_core::error::Result;
 use grabcli_core::location::Location;
 use grabcli_core::places::{self, Match, SavedPlace};
 use grabcli_core::{Context, Hydra, Request};
-use grabcli_core::cache::CacheMode;
 use serde_json::{Value, json};
 
 use crate::local;

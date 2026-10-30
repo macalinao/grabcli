@@ -2,7 +2,9 @@
 //! menu categories, items) and catalog rows back into [`Merchant`]s for
 //! `--local` results. Indexing is best-effort: callers ignore its errors.
 
-use grabcli_core::cache::{CacheHandle, CategoryRow, ItemHit, ItemRow, RestaurantHit, RestaurantRow};
+use grabcli_core::cache::{
+    CacheHandle, CategoryRow, ItemHit, ItemRow, RestaurantHit, RestaurantRow,
+};
 use grabcli_core::money::Money;
 use serde_json::Value;
 
@@ -241,9 +243,9 @@ mod tests {
     use crate::discover::{parse_recommended, parse_search_page};
     use grabcli_core::cache::memory::MemoryCache;
     use grabcli_core::cache::{CacheConfig, CacheMode, ItemQuery, Near, RestaurantQuery};
-    use std::sync::Arc;
     use grabcli_core::error::Result;
     use serde_json::json;
+    use std::sync::Arc;
 
     const HOME: (f64, f64) = (1.23, 103.8);
 
@@ -285,25 +287,27 @@ mod tests {
         assert!(!cache.search_items(&ItemQuery::default()).await?.is_empty());
 
         // Restaurant text search (cuisine) near home.
-        let japanese = cache.search_restaurants(&RestaurantQuery {
-            text: Some("japanese".into()),
-            near: near(6.0),
-            ..RestaurantQuery::default()
-        })
-        .await?;
+        let japanese = cache
+            .search_restaurants(&RestaurantQuery {
+                text: Some("japanese".into()),
+                near: near(6.0),
+                ..RestaurantQuery::default()
+            })
+            .await?;
         assert!(japanese.iter().any(|h| h.row.id == "2-C4CXGAC2N6TDRA"));
         // Recommended rows kept the richer fields from search (rating) and
         // gained nothing wrong; recommended-only rows exist too.
         assert!(cache.restaurant("2-CYM3EZLHTNVGNT").await?.is_some());
 
         // Dishes under ₱300 near home, partial match.
-        let cheap = cache.search_items(&ItemQuery {
-            text: Some("isig".into()),
-            near: near(6.0),
-            max_price_minor: Some(30_000),
-            ..ItemQuery::default()
-        })
-        .await?;
+        let cheap = cache
+            .search_items(&ItemQuery {
+                text: Some("isig".into()),
+                near: near(6.0),
+                max_price_minor: Some(30_000),
+                ..ItemQuery::default()
+            })
+            .await?;
         assert!(!cheap.is_empty());
         for hit in &cheap {
             let d = dish_from_hit(hit);
