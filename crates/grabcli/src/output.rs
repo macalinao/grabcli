@@ -3,7 +3,7 @@
 
 use std::io::{self, Write};
 
-use crate::error::Error;
+use grabcli_core::error::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {

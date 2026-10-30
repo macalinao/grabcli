@@ -7,10 +7,13 @@
 use bpaf::Bpaf;
 use grabcli_core::error::Result;
 use grabcli_core::location::Location;
-use grabcli_core::output::Output;
 use grabcli_core::places::{self, Match, SavedPlace};
 use grabcli_core::{Context, Hydra, Request};
+use grabcli_core::cache::CacheMode;
 use serde_json::{Value, json};
+
+use crate::local;
+use crate::output::Output;
 
 /// `grab saved-places <cmd>`.
 #[derive(Debug, Clone, Bpaf)]
@@ -53,7 +56,7 @@ pub fn wants_json(cmd: &PlacesCmd) -> bool {
 }
 
 pub async fn run(out: Output, cmd: PlacesCmd) -> Result<()> {
-    let mut ctx = Context::new(out, places::allowlist())?;
+    let mut ctx = local::context(|_| places::allowlist(), CacheMode::Off).await?;
     let all = fetch(&mut ctx).await?;
     let current = Location::from_session(ctx.session()).ok();
     match cmd {
@@ -74,7 +77,7 @@ pub async fn run(out: Output, cmd: PlacesCmd) -> Result<()> {
             let unit = unit.or_else(|| same.and_then(|c| c.address_detail.clone()));
             let note = note.or_else(|| same.and_then(|c| c.note_to_driver.clone()));
             let cookie = p.to_location(unit.as_deref(), note.as_deref());
-            ctx.set_location(&cookie)?;
+            ctx.set_location(&cookie).await?;
             let loc = Location::from_session(ctx.session())?;
             if out.is_json() {
                 out.json(&json!({

@@ -2,17 +2,23 @@
 //!
 //! Composes shared auth commands (`grab auth …`) and per-service commands
 //! (`grab food …`, `grab mart …`). A new service slots in as another `#[bpaf(command)]`
-//! variant that defers to that service crate's parser and `run`.
+//! variant whose parser and `run` live in a module here (`food`, `mart`).
 
 mod auth;
 mod cache;
+mod food;
+mod local;
+mod mart;
+mod output;
+mod paths;
 mod places;
 
 use bpaf::Bpaf;
 use grabcli_core::cache::CacheMode;
-use grabcli_core::output::Output;
-use grabfood::{FoodCmd, food_cmd};
-use grabmart::{MartCmd, mart_cmd};
+
+use food::{FoodCmd, food_cmd};
+use mart::{MartCmd, mart_cmd};
+use output::Output;
 
 use auth::{AuthCmd, auth_cmd};
 use cache::{CacheCmd, cache_cmd};
@@ -88,12 +94,12 @@ async fn main() {
             (out, auth::run(out, cmd).await)
         }
         Service::Food { json, cmd } => {
-            let out = Output::new(cli.json || json || grabfood::cmd_wants_json(&cmd));
-            (out, grabfood::run(out, cache_mode, cmd).await)
+            let out = Output::new(cli.json || json || food::cmd_wants_json(&cmd));
+            (out, food::run(out, cache_mode, cmd).await)
         }
         Service::Mart { json, cmd } => {
-            let out = Output::new(cli.json || json || grabmart::cmd_wants_json(&cmd));
-            (out, grabmart::run(out, cache_mode, cmd).await)
+            let out = Output::new(cli.json || json || mart::cmd_wants_json(&cmd));
+            (out, mart::run(out, cache_mode, cmd).await)
         }
         Service::SavedPlaces { cmd } => {
             let out = Output::new(cli.json || places::wants_json(&cmd));

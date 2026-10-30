@@ -510,11 +510,18 @@ checksum = "37bfe73dc8ec21f54d181e5a60554327ec3f1c600c455a75ccbfc65d2106a6c4"
 name = "grabcli"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
+ "async-trait",
  "bpaf",
  "grabcli-core",
+ "grabcli-sqlite",
  "grabfood",
  "grabmart",
+ "image",
+ "imageproc",
+ "reqwest",
  "serde_json",
+ "tempfile",
  "tokio",
 ]
 
@@ -558,12 +565,8 @@ dependencies = [
 name = "grabfood"
 version = "0.1.0"
 dependencies = [
- "ab_glyph",
  "bpaf",
  "grabcli-core",
- "image",
- "imageproc",
- "reqwest",
  "serde",
  "serde_json",
  "sha1 0.10.7",
@@ -577,7 +580,7 @@ dependencies = [
 name = "grabmart"
 version = "0.1.0"
 dependencies = [
- "bpaf",
+ "async-trait",
  "grabcli-core",
  "grabfood",
  "serde",

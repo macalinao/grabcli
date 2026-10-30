@@ -17,11 +17,20 @@ path = "src/main.rs"
 
 [dependencies]
 grabcli-core.workspace = true
-grabfood.workspace = true
+grabcli-sqlite.workspace = true
+grabfood = { workspace = true, features = ["cli"] }
 grabmart.workspace = true
+async-trait.workspace = true
 bpaf.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+image.workspace = true
+imageproc.workspace = true
+ab_glyph.workspace = true
+reqwest.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

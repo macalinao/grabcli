@@ -6,13 +6,13 @@
 //! - state dir: `$GRABCLI_STATE_DIR`, else `$XDG_STATE_HOME/grabcli`, else
 //!   `~/.local/state/grabcli`. Each service gets a subdirectory (`food/`).
 //! - cache dir: `$GRABCLI_CACHE_DIR`, else `$XDG_CACHE_HOME/grabcli`, else
-//!   `~/.cache/grabcli`. Disposable response cache (see [`crate::cache`]).
+//!   `~/.cache/grabcli`. Disposable response cache (see `grabcli_core::cache`).
 
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::error::{Error, Result};
+use grabcli_core::error::{Error, Result};
 
 fn home() -> Result<PathBuf> {
     std::env::var_os("HOME")
