@@ -18,20 +18,27 @@
 //!    them as the session and disposes the context.
 //!
 //! The context outlives the process (`disposeOnDetach: false`); what's needed
-//! to resume (context/tab ids, expiry, the masked phone) is kept 0600 in
-//! [`PendingLogin`]. Sends are rate-limited by [`SendLog`] and never retried.
-//! Nothing here prints cookie values, tokens, OTPs or the full phone number.
+//! to resume (context/tab ids, expiry, the masked phone) is the
+//! [`PendingLogin`] value, which the caller keeps (the CLI in a 0600 file, a
+//! daemon in memory). The step functions take it as `&mut Option<_>` and set
+//! it to `None` once the login is over (logged in, or ended for good). Sends
+//! are rate-limited by an injectable [`SendBudget`] and never retried.
+//!
+//! This module writes no files and logs nothing: it never prints cookie
+//! values, tokens, OTPs or the full phone number. [`LoginDriver`] wraps the
+//! steps as a small state machine for daemons (one driver per login, driven
+//! from a thread via `block_on` or from a task).
 
-use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::cdp::{self, Browser, PageInfo};
 use crate::error::{Error, ErrorKind, Result};
 use crate::jwt;
-use crate::paths;
 use crate::session::{LOCATION_COOKIE, Session};
 use crate::sso;
 
@@ -168,42 +175,18 @@ pub struct PendingLogin {
     /// Delivery Grab reported on the page (`SMS`, `WhatsApp`, `app`), if known.
     #[serde(default)]
     pub channel_sent: Option<String>,
+    /// Whether to copy the saved address (`location` cookie) from the
+    /// browser's default context when the session has none. The CLI does
+    /// (it's the user's own browser); a shared daemon browser must not.
+    #[serde(default = "yes")]
+    pub copy_browser_address: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 impl PendingLogin {
-    pub fn path() -> Result<PathBuf> {
-        Ok(paths::state_dir()?.join("login-pending.json"))
-    }
-
-    /// The saved pending login, expired or not; `None` if there is none.
-    pub fn read_from(path: &Path) -> Result<Option<Self>> {
-        match std::fs::read(path) {
-            Ok(b) => Ok(Some(serde_json::from_slice(&b)?)),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn read() -> Result<Option<Self>> {
-        Self::read_from(&Self::path()?)
-    }
-
-    pub fn save_to(&self, path: &Path) -> Result<()> {
-        paths::write_private(path, &serde_json::to_vec_pretty(self)?)
-    }
-
-    pub fn save(&self) -> Result<()> {
-        self.save_to(&Self::path()?)
-    }
-
-    pub fn clear() -> Result<()> {
-        let path = Self::path()?;
-        match std::fs::remove_file(path) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
-            _ => Ok(()),
-        }
-    }
-
     pub fn is_expired(&self, now: i64) -> bool {
         self.expires_at <= now
     }
@@ -240,37 +223,14 @@ pub fn pending_json(p: &PendingLogin, now: i64) -> Value {
 // ---------------------------------------------------------------- send log
 
 /// Timestamps of challenge sends, kept separately from the pending login so
-/// cancelling a login never resets the limits.
+/// cancelling a login never resets the limits. A plain value: persisting it
+/// is up to the [`SendBudget`] that holds it.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SendLog {
     pub sends: Vec<i64>,
 }
 
 impl SendLog {
-    pub fn path() -> Result<PathBuf> {
-        Ok(paths::state_dir()?.join("login-sends.json"))
-    }
-
-    pub fn load_from(path: &Path) -> Result<Self> {
-        match std::fs::read(path) {
-            Ok(b) => Ok(serde_json::from_slice(&b).unwrap_or_default()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn load() -> Result<Self> {
-        Self::load_from(&Self::path()?)
-    }
-
-    pub fn save_to(&self, path: &Path) -> Result<()> {
-        paths::write_private(path, &serde_json::to_vec_pretty(self)?)
-    }
-
-    pub fn save(&self) -> Result<()> {
-        self.save_to(&Self::path()?)
-    }
-
     fn recent(&self, now: i64) -> impl Iterator<Item = i64> + '_ {
         self.sends.iter().copied().filter(move |t| now - t < 3600)
     }
@@ -318,6 +278,49 @@ impl SendLog {
     pub fn record(&mut self, now: i64) {
         self.sends.retain(|t| now - t < 3600);
         self.sends.push(now);
+    }
+}
+
+/// The challenge-send budget ([`SEND_COOLDOWN_SECS`],
+/// [`MAX_SENDS_PER_HOUR`]). Injectable so the caller decides its scope and
+/// storage: the CLI keeps one per user in a file; a daemon keeps one per org.
+#[async_trait]
+pub trait SendBudget: Send + Sync {
+    /// Fail with `rate_limited` if a send now would break the limits.
+    async fn check(&self, now: i64) -> Result<()>;
+    /// Record a send. Called before the send happens (a crash still counts);
+    /// an error aborts the login before anything is sent.
+    async fn record(&self, now: i64) -> Result<()>;
+}
+
+/// A [`SendLog`] held in memory.
+#[derive(Debug, Default)]
+pub struct MemorySendBudget {
+    pub log: Mutex<SendLog>,
+}
+
+impl MemorySendBudget {
+    fn lock(&self) -> std::sync::MutexGuard<'_, SendLog> {
+        self.log
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    /// A copy of the log.
+    pub fn snapshot(&self) -> SendLog {
+        self.lock().clone()
+    }
+}
+
+#[async_trait]
+impl SendBudget for MemorySendBudget {
+    async fn check(&self, now: i64) -> Result<()> {
+        self.lock().check(now)
+    }
+
+    async fn record(&self, now: i64) -> Result<()> {
+        self.lock().record(now);
+        Ok(())
     }
 }
 
@@ -624,6 +627,8 @@ pub struct StartOpts<'a> {
     pub cdp_base: &'a str,
     pub phone: &'a str,
     pub channel: Channel,
+    /// See [`PendingLogin::copy_browser_address`].
+    pub copy_browser_address: bool,
 }
 
 fn page_error(s: &Screen) -> Error {
@@ -675,30 +680,18 @@ async fn dispose(cdp_base: &str, context: &str) {
 }
 
 /// Start a login and send exactly ONE challenge. The caller has already
-/// decided a send is wanted (`--phone` without `--dry-run`) and that silent
-/// refresh failed.
-pub async fn start(opts: StartOpts<'_>) -> Result<PendingLogin> {
+/// decided a send is wanted, that silent refresh failed, and that no other
+/// login is pending (see [`check_no_pending`]). Returns the pending login to
+/// keep for [`finish_with_otp`] / [`wait_for_approval`].
+pub async fn start(opts: StartOpts<'_>, budget: &dyn SendBudget) -> Result<PendingLogin> {
     let now = jwt::now();
     let (cc, national) = split_phone(opts.phone)?;
     let masked = mask_phone(&cc, &national);
-    if let Some(p) = PendingLogin::read()? {
-        if !p.is_expired(now) {
-            return Err(Error::invalid(format!(
-                "a login for {} is already pending ({}, {}s left): finish it with `grab auth login --otp <code>` / `--poll`, or run `grab auth login --cancel`",
-                p.phone_masked,
-                p.kind.as_str(),
-                p.expires_at - now
-            )));
-        }
-        dispose(&p.cdp_base, &p.browser_context_id).await;
-        PendingLogin::clear()?;
-    }
-    let mut log = SendLog::load()?;
-    log.check(now)?;
+    budget.check(now).await?;
 
     let mut browser = Browser::connect(opts.cdp_base).await?;
     let ctx = browser.create_context().await?;
-    let result = drive_send(browser, &ctx, opts, &cc, &national, &masked, &mut log).await;
+    let result = drive_send(browser, &ctx, opts, &cc, &national, &masked, budget).await;
     match result {
         Ok(p) => Ok(p),
         Err(e) => {
@@ -715,7 +708,7 @@ async fn drive_send(
     cc: &str,
     national: &str,
     masked: &str,
-    log: &mut SendLog,
+    budget: &dyn SendBudget,
 ) -> Result<PendingLogin> {
     let target = browser.open_tab(ctx, "about:blank").await?;
     let session = browser.attach(&target).await?;
@@ -774,8 +767,7 @@ async fn drive_send(
 
     // ---- Point of no return: from here on a challenge may be sent. Record
     // the send first so a crash still counts against the limits.
-    log.record(jwt::now());
-    log.save()?;
+    budget.record(jwt::now()).await?;
     tab.click(CONTINUE_BTN, "Continue button").await?;
     let mut s = tab
         .wait_for(Duration::from_secs(40), |s| {
@@ -822,8 +814,8 @@ async fn drive_send(
         phone_masked: masked.to_string(),
         channel_requested: opts.channel,
         channel_sent,
+        copy_browser_address: opts.copy_browser_address,
     };
-    p.save()?;
     Ok(p)
 }
 
@@ -837,11 +829,31 @@ impl Tab {
     }
 }
 
-/// Reattach to the pending login's tab, or clean up and explain.
-async fn reattach(p: &PendingLogin) -> Result<Tab> {
+/// Before [`start`]: refuse while an unexpired login is pending; dispose an
+/// expired one (and clear `slot`).
+pub async fn check_no_pending(slot: &mut Option<PendingLogin>, now: i64) -> Result<()> {
+    if let Some(p) = slot.as_ref() {
+        if !p.is_expired(now) {
+            return Err(Error::invalid(format!(
+                "a login for {} is already pending ({}, {}s left): finish it with `grab auth login --otp <code>` / `--poll`, or run `grab auth login --cancel`",
+                p.phone_masked,
+                p.kind.as_str(),
+                p.expires_at - now
+            )));
+        }
+        dispose(&p.cdp_base, &p.browser_context_id).await;
+        *slot = None;
+    }
+    Ok(())
+}
+
+/// Reattach to the pending login's tab, or clean up (clearing `slot`) and
+/// explain.
+async fn reattach(slot: &mut Option<PendingLogin>) -> Result<(Tab, PendingLogin)> {
+    let p = slot.clone().ok_or_else(no_pending)?;
     if p.is_expired(jwt::now()) {
         dispose(&p.cdp_base, &p.browser_context_id).await;
-        PendingLogin::clear()?;
+        *slot = None;
         return Err(Error::new(
             ErrorKind::LoginExpired,
             "the pending login expired; start again with `grab auth login --phone <number>` (mind the send limits)",
@@ -853,31 +865,37 @@ async fn reattach(p: &PendingLogin) -> Result<Tab> {
             .tab_in_context(&p.browser_context_id, &p.target_id)
             .await?
     {
-        PendingLogin::clear()?;
+        *slot = None;
         return Err(Error::new(
             ErrorKind::LoginExpired,
             "the login tab is gone (browser restarted or tab closed); start again with `grab auth login --phone <number>`",
         ));
     }
     let session = browser.attach(&p.target_id).await?;
-    Ok(Tab { browser, session })
+    Ok((Tab { browser, session }, p))
 }
 
-/// Poll the context's cookies for a logged-in `gfc_session`; save them as
-/// the session and dispose the context.
-async fn collect_session(tab: &mut Tab, p: &PendingLogin) -> Result<Session> {
+/// Poll the context's cookies for a logged-in `gfc_session`; return them as
+/// the session (on top of `prev`), dispose the context and clear `slot`.
+async fn collect_session(
+    tab: &mut Tab,
+    p: &PendingLogin,
+    slot: &mut Option<PendingLogin>,
+    prev: &Session,
+) -> Result<Session> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(45);
     loop {
         let cookies = tab.browser.context_cookies(&p.browser_context_id).await?;
-        let prev = Session::load_default().unwrap_or_default();
         let mut s = prev.clone();
         s.cookies = cookies;
         if s.gfc_logged_in() {
             // The isolated context has no saved address/country/language:
-            // keep the previous session's, else take the address from the
-            // browser's normal (default) context. Values stay in memory.
-            s.carry_over_preferences(&prev);
-            if s.cookie(LOCATION_COOKIE).is_none()
+            // keep the previous session's, else (if allowed) take the address
+            // from the browser's normal (default) context. Values stay in
+            // memory.
+            s.carry_over_preferences(prev);
+            if p.copy_browser_address
+                && s.cookie(LOCATION_COOKIE).is_none()
                 && let Ok(def) = tab.browser.default_cookies().await
             {
                 s.replace_named_cookies(LOCATION_COOKIE, &def);
@@ -886,12 +904,11 @@ async fn collect_session(tab: &mut Tab, p: &PendingLogin) -> Result<Session> {
                 s.user_agent = Some(tab.browser.user_agent.clone());
             }
             s.exported_at = Some(jwt::now() as f64);
-            s.save_default()?;
             tab.browser
                 .dispose_context(&p.browser_context_id)
                 .await
                 .ok();
-            PendingLogin::clear()?;
+            *slot = None;
             return Ok(s);
         }
         if tokio::time::Instant::now() >= deadline {
@@ -905,22 +922,29 @@ async fn collect_session(tab: &mut Tab, p: &PendingLogin) -> Result<Session> {
 }
 
 /// `grab auth login --otp <code>`: type the code into the waiting page.
-pub async fn finish_with_otp(otp: &str) -> Result<Session> {
+/// `prev` is the session to build on (its preference cookies are kept);
+/// pass `&Session::default()` for none. On success (and on a terminal
+/// failure) `slot` is cleared; a rejected code leaves it for another try.
+pub async fn finish_with_otp(
+    slot: &mut Option<PendingLogin>,
+    otp: &str,
+    prev: &Session,
+) -> Result<Session> {
     let otp = otp.trim();
     if !(4..=8).contains(&otp.len()) || !otp.chars().all(|c| c.is_ascii_digit()) {
         return Err(Error::invalid("the code should be 4-8 digits"));
     }
-    let p = PendingLogin::read()?.ok_or_else(no_pending)?;
-    if p.kind != PendingKind::OtpSent {
+    let kind = slot.as_ref().ok_or_else(no_pending)?.kind;
+    if kind != PendingKind::OtpSent {
         return Err(Error::invalid(
             "this login is waiting for an in-app approval: run `grab auth login --poll`",
         ));
     }
-    let mut tab = reattach(&p).await?;
+    let (mut tab, p) = reattach(slot).await?;
     match tab.probe().await? {
         Screen::Otp { .. } | Screen::OtpRejected => {}
-        Screen::Done => return collect_session(&mut tab, &p).await,
-        other => return Err(finish_error(&p, &other).await),
+        Screen::Done => return collect_session(&mut tab, &p, slot, prev).await,
+        other => return Err(finish_error(&p, slot, &other).await),
     }
     tab.click(OTP_INPUT, "code field").await?;
     tab.browser.type_digits(&tab.session, otp).await?;
@@ -931,34 +955,41 @@ pub async fn finish_with_otp(otp: &str) -> Result<Session> {
         })
         .await?;
     match s {
-        Screen::Done => collect_session(&mut tab, &p).await,
+        Screen::Done => collect_session(&mut tab, &p, slot, prev).await,
         Screen::OtpRejected => Err(Error::new(
             ErrorKind::OtpInvalid,
             "Grab didn't accept the code; check it and run `grab auth login --otp <code>` again (the page allows only a few tries)",
         )),
         Screen::Otp { .. } | Screen::Loading => {
             // Maybe the redirect is just slow: check the cookies anyway.
-            collect_session(&mut tab, &p).await
+            collect_session(&mut tab, &p, slot, prev).await
         }
-        other => Err(finish_error(&p, &other).await),
+        other => Err(finish_error(&p, slot, &other).await),
     }
 }
 
 /// Outcome of [`wait_for_approval`].
+#[derive(Debug)]
 pub enum WaitOutcome {
     LoggedIn(Session),
-    StillWaiting(PendingLogin),
+    /// Still waiting; the pending login is unchanged in the slot.
+    StillWaiting,
 }
 
 /// `grab auth login --poll`: wait up to `timeout` for the in-app approval.
-pub async fn wait_for_approval(timeout: Duration) -> Result<WaitOutcome> {
-    let p = PendingLogin::read()?.ok_or_else(no_pending)?;
-    if p.kind != PendingKind::ApprovalPending {
+/// Same `slot` / `prev` rules as [`finish_with_otp`].
+pub async fn wait_for_approval(
+    slot: &mut Option<PendingLogin>,
+    timeout: Duration,
+    prev: &Session,
+) -> Result<WaitOutcome> {
+    let kind = slot.as_ref().ok_or_else(no_pending)?.kind;
+    if kind != PendingKind::ApprovalPending {
         return Err(Error::invalid(
             "this login is waiting for a code: run `grab auth login --otp <code>`",
         ));
     }
-    let mut tab = reattach(&p).await?;
+    let (mut tab, p) = reattach(slot).await?;
     let left = u64::try_from(p.expires_at - jwt::now()).unwrap_or(0);
     let timeout = timeout.min(Duration::from_secs(left));
     let s = tab
@@ -967,16 +998,18 @@ pub async fn wait_for_approval(timeout: Duration) -> Result<WaitOutcome> {
         })
         .await?;
     match s {
-        Screen::Done => Ok(WaitOutcome::LoggedIn(collect_session(&mut tab, &p).await?)),
-        Screen::Approval | Screen::Loading => Ok(WaitOutcome::StillWaiting(p)),
-        other => Err(finish_error(&p, &other).await),
+        Screen::Done => Ok(WaitOutcome::LoggedIn(
+            collect_session(&mut tab, &p, slot, prev).await?,
+        )),
+        Screen::Approval | Screen::Loading => Ok(WaitOutcome::StillWaiting),
+        other => Err(finish_error(&p, slot, &other).await),
     }
 }
 
 /// A terminal page state while finishing: clean up and map the error.
-async fn finish_error(p: &PendingLogin, s: &Screen) -> Error {
+async fn finish_error(p: &PendingLogin, slot: &mut Option<PendingLogin>, s: &Screen) -> Error {
     dispose(&p.cdp_base, &p.browser_context_id).await;
-    PendingLogin::clear().ok();
+    *slot = None;
     page_error(s)
 }
 
@@ -988,14 +1021,14 @@ fn no_pending() -> Error {
 }
 
 /// `grab auth login --cancel`: dispose the isolated context, forget the
-/// pending login. Send limits are kept.
-pub async fn cancel() -> Result<bool> {
-    let Some(p) = PendingLogin::read()? else {
-        return Ok(false);
+/// pending login (clearing `slot`). Send limits are kept. Returns whether
+/// there was one.
+pub async fn cancel(slot: &mut Option<PendingLogin>) -> bool {
+    let Some(p) = slot.take() else {
+        return false;
     };
     dispose(&p.cdp_base, &p.browser_context_id).await;
-    PendingLogin::clear()?;
-    Ok(true)
+    true
 }
 
 /// Order-tracking tabs in the shared browser (best-effort; empty if the
@@ -1025,6 +1058,190 @@ pub fn still_open(first: &[String], second: &[String]) -> Vec<String> {
         .filter(|t| second.contains(t))
         .cloned()
         .collect()
+}
+
+// ------------------------------------------------------------ step driver
+
+/// What a [`LoginDriver`] is waiting for, or how it ended. Carries no phone
+/// number or code (only the masked phone) and redacts the session in `Debug`.
+#[derive(Debug, Clone)]
+pub enum LoginState {
+    /// A code was sent by SMS/WhatsApp: call [`LoginDriver::submit_code`].
+    /// `error` is set after a rejected code (another try is allowed).
+    AwaitingCode {
+        phone_masked: String,
+        /// Delivery Grab reported (`SMS`, `WhatsApp`), if known.
+        channel: Option<String>,
+        expires_at: i64,
+        error: Option<String>,
+    },
+    /// An approval request went to the Grab app: call [`LoginDriver::poll`].
+    AwaitingApproval {
+        phone_masked: String,
+        expires_at: i64,
+    },
+    /// Logged in. The session holds the captured cookies; nothing was saved
+    /// anywhere: persist it through your own store.
+    Done(Session),
+    /// Ended for good (step-up, expiry, rate limit, page error, cancel).
+    Failed(String),
+}
+
+impl LoginState {
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Done(_) | Self::Failed(_))
+    }
+}
+
+/// What to start a [`LoginDriver`] with.
+#[derive(Clone)]
+pub struct LoginRequest<'a> {
+    /// CDP endpoint of a headed browser (e.g. `http://127.0.0.1:9222`).
+    pub cdp_url: &'a str,
+    /// International form (`+63…`). Used only to type into the page; never
+    /// stored, logged or returned (only masked).
+    pub phone: &'a str,
+    pub channel: Channel,
+    /// The previous session for this account, if any: its address/country/
+    /// language cookies are carried over.
+    pub previous: Option<Session>,
+    /// Copy the address from the browser's default context when there is no
+    /// previous one. Keep `false` for a browser shared between accounts.
+    pub copy_browser_address: bool,
+}
+
+impl std::fmt::Debug for LoginRequest<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoginRequest")
+            .field("cdp_url", &self.cdp_url)
+            .field("phone", &"<redacted>")
+            .field("channel", &self.channel)
+            .finish_non_exhaustive()
+    }
+}
+
+/// A phone login as a state machine, for a daemon: [`start`](Self::start)
+/// sends ONE challenge (after the injected [`SendBudget`] allows it), then
+/// [`submit_code`](Self::submit_code) or [`poll`](Self::poll) until the
+/// state is terminal, or [`cancel`](Self::cancel). Writes no files and logs
+/// nothing. The isolated browser context is disposed when the login ends;
+/// call `cancel` when abandoning a driver so it is disposed promptly (an
+/// abandoned one is otherwise only cleaned up by the browser).
+#[derive(Debug)]
+pub struct LoginDriver {
+    pending: Option<PendingLogin>,
+    previous: Session,
+    state: LoginState,
+}
+
+fn failed(e: &Error) -> LoginState {
+    LoginState::Failed(format!("{}: {}", e.kind.as_str(), e.message))
+}
+
+impl LoginDriver {
+    /// Open the login page in a fresh isolated context and send one
+    /// challenge. Never fails: errors become [`LoginState::Failed`].
+    pub async fn start(req: LoginRequest<'_>, budget: &dyn SendBudget) -> Self {
+        let previous = req.previous.clone().unwrap_or_default();
+        let opts = StartOpts {
+            cdp_base: req.cdp_url,
+            phone: req.phone,
+            channel: req.channel,
+            copy_browser_address: req.copy_browser_address,
+        };
+        match start(opts, budget).await {
+            Ok(p) => {
+                let state = Self::waiting(&p, None);
+                Self {
+                    pending: Some(p),
+                    previous,
+                    state,
+                }
+            }
+            Err(e) => Self {
+                pending: None,
+                previous,
+                state: failed(&e),
+            },
+        }
+    }
+
+    fn waiting(p: &PendingLogin, error: Option<String>) -> LoginState {
+        match p.kind {
+            PendingKind::OtpSent => LoginState::AwaitingCode {
+                phone_masked: p.phone_masked.clone(),
+                channel: p.channel_sent.clone(),
+                expires_at: p.expires_at,
+                error,
+            },
+            PendingKind::ApprovalPending => LoginState::AwaitingApproval {
+                phone_masked: p.phone_masked.clone(),
+                expires_at: p.expires_at,
+            },
+        }
+    }
+
+    pub fn state(&self) -> &LoginState {
+        &self.state
+    }
+
+    /// The pending login (no secrets), e.g. to show its expiry.
+    pub fn pending(&self) -> Option<&PendingLogin> {
+        self.pending.as_ref()
+    }
+
+    /// After an error: still waiting if the login is still pending (e.g. a
+    /// rejected code), else failed.
+    fn after_error(&mut self, e: &Error) {
+        self.state = match &self.pending {
+            Some(p) => Self::waiting(p, Some(e.message.clone())),
+            None => failed(e),
+        };
+    }
+
+    /// Type `code` into the page. Only valid while awaiting a code.
+    pub async fn submit_code(&mut self, code: &str) -> &LoginState {
+        if !matches!(self.state, LoginState::AwaitingCode { .. }) {
+            return &self.state;
+        }
+        match finish_with_otp(&mut self.pending, code, &self.previous).await {
+            Ok(s) => self.state = LoginState::Done(s),
+            Err(e) => self.after_error(&e),
+        }
+        &self.state
+    }
+
+    /// Wait up to `wait` for the in-app approval (keep it short and call
+    /// again; e.g. 5 s). Only valid while awaiting approval.
+    pub async fn poll(&mut self, wait: Duration) -> &LoginState {
+        if !matches!(self.state, LoginState::AwaitingApproval { .. }) {
+            return &self.state;
+        }
+        match wait_for_approval(&mut self.pending, wait, &self.previous).await {
+            Ok(WaitOutcome::LoggedIn(s)) => self.state = LoginState::Done(s),
+            Ok(WaitOutcome::StillWaiting) => {}
+            Err(e) => self.after_error(&e),
+        }
+        &self.state
+    }
+
+    /// Dispose the isolated context and end the login (the send still
+    /// counts against the budget).
+    pub async fn cancel(&mut self) -> &LoginState {
+        if !self.state.is_terminal() {
+            cancel(&mut self.pending).await;
+            self.state = LoginState::Failed("cancelled".into());
+        }
+        &self.state
+    }
+
+    /// The session once [`LoginState::Done`].
+    pub fn into_session(self) -> Option<Session> {
+        match self.state {
+            LoginState::Done(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1087,24 +1304,8 @@ mod tests {
         assert_eq!(log.sends.len(), 2);
     }
 
-    #[test]
-    fn send_log_roundtrip_and_missing() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("login-sends.json");
-        assert!(SendLog::load_from(&path)?.sends.is_empty());
-        let mut log = SendLog::default();
-        log.record(42);
-        log.save_to(&path)?;
-        assert_eq!(SendLog::load_from(&path)?.sends, vec![42]);
-        Ok(())
-    }
-
-    #[test]
-    fn pending_roundtrip_is_private_and_has_no_phone() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("login-pending.json");
-        assert!(PendingLogin::read_from(&path)?.is_none());
-        let p = PendingLogin {
+    fn pending() -> PendingLogin {
+        PendingLogin {
             kind: PendingKind::OtpSent,
             cdp_base: "http://127.0.0.1:9222".into(),
             browser_context_id: "CTX".into(),
@@ -1114,13 +1315,18 @@ mod tests {
             phone_masked: mask_phone("63", "9000000012"),
             channel_requested: Channel::Sms,
             channel_sent: Some("SMS".into()),
-        };
-        p.save_to(&path)?;
-        let raw = std::fs::read_to_string(&path)?;
+            copy_browser_address: false,
+        }
+    }
+
+    #[test]
+    fn pending_serializes_without_phone() -> Result<()> {
+        let p = pending();
+        let raw = serde_json::to_string(&p)?;
         assert!(!raw.contains("9000000012"));
-        let back = PendingLogin::read_from(&path)?.ok_or_else(no_pending)?;
+        let back: PendingLogin = serde_json::from_str(&raw)?;
         assert_eq!(back.kind, PendingKind::OtpSent);
-        assert_eq!(back.browser_context_id, "CTX");
+        assert!(!back.copy_browser_address);
         assert!(!back.is_expired(200));
         assert!(back.is_expired(100 + PENDING_TTL_SECS));
         assert_eq!(back.summary(160)["expires_in_secs"], json!(540));
@@ -1136,15 +1342,75 @@ mod tests {
             pending_json(&approval, 160)["next"],
             json!("grab auth login --poll")
         );
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            assert_eq!(
-                std::fs::metadata(&path)?.permissions().mode() & 0o777,
-                0o600
-            );
-        }
+        // Older pending files (before the flag) keep copying the address.
+        let mut v = serde_json::to_value(&p)?;
+        v.as_object_mut().map(|o| o.remove("copy_browser_address"));
+        assert!(serde_json::from_value::<PendingLogin>(v)?.copy_browser_address);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn memory_budget_enforces_limits() -> Result<()> {
+        let b = MemorySendBudget::default();
+        b.check(1000).await?;
+        b.record(1000).await?;
+        let e = b.check(1010).await.err();
+        assert_eq!(e.map(|e| e.kind), Some(ErrorKind::RateLimited));
+        assert_eq!(b.snapshot().sends, vec![1000]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn driver_never_sends_when_budget_is_spent() -> Result<()> {
+        let b = MemorySendBudget::default();
+        b.record(jwt::now()).await?;
+        // The budget refuses before any browser is contacted (the CDP URL
+        // is unroutable, so reaching it would fail differently).
+        let d = LoginDriver::start(
+            LoginRequest {
+                cdp_url: "http://127.0.0.1:1",
+                phone: "+63 900 000 0012",
+                channel: Channel::App,
+                previous: None,
+                copy_browser_address: false,
+            },
+            &b,
+        )
+        .await;
+        match d.state() {
+            LoginState::Failed(r) => {
+                assert!(r.starts_with("rate_limited"), "{r}");
+                assert!(!r.contains("0012"));
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        assert_eq!(b.snapshot().sends.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn driver_rejects_bad_phone_without_sending() {
+        let b = MemorySendBudget::default();
+        let mut d = LoginDriver::start(
+            LoginRequest {
+                cdp_url: "http://127.0.0.1:1",
+                phone: "0900",
+                channel: Channel::Sms,
+                previous: None,
+                copy_browser_address: false,
+            },
+            &b,
+        )
+        .await;
+        assert!(matches!(d.state(), LoginState::Failed(_)));
+        assert!(b.snapshot().sends.is_empty());
+        // Steps on a terminal driver are no-ops.
+        assert!(matches!(
+            d.submit_code("123456").await,
+            LoginState::Failed(_)
+        ));
+        assert!(matches!(d.cancel().await, LoginState::Failed(_)));
+        assert!(d.into_session().is_none());
     }
 
     #[test]

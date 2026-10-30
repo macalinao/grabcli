@@ -16,7 +16,6 @@ use std::path::{Path, PathBuf};
 
 use grabcli_core::error::{Error, ErrorKind, Result};
 use grabcli_core::money::Money;
-use grabcli_core::paths::write_atomic;
 use serde_json::Value;
 use sha1::{Digest, Sha1};
 
@@ -945,6 +944,18 @@ pub fn ensure_vault(vault: &Path) -> Result<()> {
         return Err(Error::new(ErrorKind::InvalidInput, "--vault is required"));
     }
     std::fs::create_dir_all(vault)?;
+    Ok(())
+}
+
+/// Write `bytes` to `path` via a temp file + rename (the vault is the
+/// caller's directory; nothing else is written).
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, bytes)?;
+    std::fs::rename(&tmp, path)?;
     Ok(())
 }
 

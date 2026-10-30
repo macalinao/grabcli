@@ -5,12 +5,29 @@
 //! an existing `session.json` the user points at.
 
 use bpaf::Bpaf;
+use grabcli_core::cache::CacheMode;
 use grabcli_core::config::{Config, DEFAULT_CDP};
 use grabcli_core::error::{Error, ErrorKind, Result};
-use grabcli_core::output::Output;
 use grabcli_core::session::Session;
-use grabcli_core::{cdp, login, paths};
+use grabcli_core::{Allowlist, Context, cdp, login};
 use serde_json::json;
+
+use crate::local::{self, FileSendBudget, FileSessionStore};
+use crate::output::Output;
+
+/// A context over the saved session with no service allowlist.
+async fn auth_context() -> Result<Context> {
+    local::context(|_| Allowlist::new(), CacheMode::Off).await
+}
+
+/// The session the login builds on (its preference cookies are kept).
+fn previous_session() -> Session {
+    FileSessionStore::default_path()
+        .and_then(|s| s.read())
+        .ok()
+        .flatten()
+        .unwrap_or_default()
+}
 
 /// `grab auth <cmd>`.
 #[derive(Debug, Clone, Bpaf)]
@@ -114,7 +131,7 @@ fn cdp_base(cli: Option<&str>, config: &Config) -> String {
 }
 
 pub async fn run(out: Output, cmd: AuthCmd) -> Result<()> {
-    let config = Config::load(&paths::config_path()?)?;
+    let config = local::load_config()?;
     match cmd {
         AuthCmd::Login {
             cdp,
@@ -160,12 +177,12 @@ pub async fn run(out: Output, cmd: AuthCmd) -> Result<()> {
             (Some(_), true) => Err(Error::invalid(
                 "--address-only copies from the browser; it can't be combined with --from",
             )),
-            (Some(path), false) => import_from(out, &path),
+            (Some(path), false) => import_from(out, path),
             (None, true) => import_address(out, &cdp_base(cdp.as_deref(), &config)).await,
             (None, false) => import_cdp(out, cdp_base(cdp.as_deref(), &config)).await,
         },
         AuthCmd::Refresh { .. } => {
-            let mut ctx = grabcli_core::Context::new(out, grabcli_core::Allowlist::new())?;
+            let mut ctx = auth_context().await?;
             ctx.refresh_session().await?;
             let notes = ctx.after_login().await;
             print_refreshed(out, &ctx, "refreshed", &notes);
@@ -173,7 +190,7 @@ pub async fn run(out: Output, cmd: AuthCmd) -> Result<()> {
         }
         AuthCmd::Hydra { .. } => {
             // Minting goes through Context so native/CDP policy applies.
-            let mut ctx = grabcli_core::Context::new(out, grabcli_core::Allowlist::new())?;
+            let mut ctx = auth_context().await?;
             let tok = ctx.mint_hydra().await?;
             let exp = grabcli_core::jwt::exp(&tok);
             if out.is_json() {
@@ -187,13 +204,15 @@ pub async fn run(out: Output, cmd: AuthCmd) -> Result<()> {
             Ok(())
         }
         AuthCmd::Status { .. } => {
-            let ctx = grabcli_core::Context::new(out, grabcli_core::Allowlist::new())?;
+            let ctx = auth_context().await?;
             let mut status = ctx.auth_status();
+            status["session_path"] =
+                json!(FileSessionStore::default_path()?.path.display().to_string());
             let now = grabcli_core::jwt::now();
-            if let Some(p) = login::PendingLogin::read()? {
+            if let Some(p) = local::read_pending()? {
                 status["login_pending"] = p.summary(now);
             }
-            let log = login::SendLog::load()?;
+            let log = FileSendBudget::default_path()?.log()?;
             status["login_sends_last_hour"] = json!(log.sends_last_hour(now));
             status["login_next_send_in_secs"] = json!(log.wait_secs(now));
             if out.is_json() {
@@ -208,9 +227,10 @@ pub async fn run(out: Output, cmd: AuthCmd) -> Result<()> {
 
 async fn import_cdp(out: Output, base: String) -> Result<()> {
     // Preserve an existing hydra token if we already have a session.
-    let mut session = Session::load_default().unwrap_or_default();
+    let store = FileSessionStore::default_path()?;
+    let mut session = store.read().ok().flatten().unwrap_or_default();
     cdp::export_cookies(&base, &mut session).await?;
-    session.save_default()?;
+    store.write(&session)?;
     let logged_in = session.cookie("gfc_session").is_some();
     if out.is_json() {
         out.json(&json!({
@@ -239,7 +259,7 @@ async fn import_cdp(out: Output, base: String) -> Result<()> {
 /// `grab auth import --address-only`: merge just the `location` cookie from
 /// the browser's normal context into the saved session.
 async fn import_address(out: Output, base: &str) -> Result<()> {
-    let mut ctx = grabcli_core::Context::new(out, grabcli_core::Allowlist::new())?;
+    let mut ctx = auth_context().await?;
     if !ctx.restore_address_from_browser(base).await? {
         return Err(Error::new(
             ErrorKind::AddressMissing,
@@ -259,14 +279,16 @@ async fn import_address(out: Output, base: &str) -> Result<()> {
     Ok(())
 }
 
-fn import_from(out: Output, path: &std::path::Path) -> Result<()> {
-    let session = Session::load(path).map_err(|e| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!("could not read {}: {}", path.display(), e.message),
-        )
-    })?;
-    session.save_default()?;
+fn import_from(out: Output, path: std::path::PathBuf) -> Result<()> {
+    let session = FileSessionStore { path: path.clone() }
+        .require()
+        .map_err(|e| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                format!("could not read {}: {}", path.display(), e.message),
+            )
+        })?;
+    FileSessionStore::default_path()?.write(&session)?;
     if out.is_json() {
         out.json(&json!({"imported": true, "cookies": session.cookies.len(), "source": path.display().to_string()}));
     } else {
@@ -307,7 +329,7 @@ struct LoginArgs {
     cancel: bool,
 }
 
-fn print_refreshed(out: Output, ctx: &grabcli_core::Context, kind: &str, notes: &[String]) {
+fn print_refreshed(out: Output, ctx: &Context, kind: &str, notes: &[String]) {
     let status = ctx.auth_status();
     let secs = status
         .get("gfc_session_expires_in_secs")
@@ -339,7 +361,7 @@ fn print_refreshed(out: Output, ctx: &grabcli_core::Context, kind: &str, notes: 
 /// Silent path: already fresh, or refresh through the SSO cookie. `Ok(None)`
 /// when there's no session to refresh; `Err` when the SSO is dead.
 async fn try_silent(out: Output) -> Result<Option<&'static str>> {
-    let Ok(mut ctx) = grabcli_core::Context::new(out, grabcli_core::Allowlist::new()) else {
+    let Ok(mut ctx) = auth_context().await else {
         return Ok(None);
     };
     let fresh = ctx.session().gfc_logged_in()
@@ -360,7 +382,7 @@ async fn try_silent(out: Output) -> Result<Option<&'static str>> {
 
 async fn login_ok(out: Output, session: &Session) {
     // Best-effort: fill in a missing address, mint hydra.
-    let notes = match grabcli_core::Context::new(out, grabcli_core::Allowlist::new()) {
+    let notes = match auth_context().await {
         Ok(mut ctx) => ctx.after_login().await,
         Err(_) => Vec::new(),
     };
@@ -428,20 +450,30 @@ async fn finish_otp(out: Output, code: &str) -> Result<()> {
     } else {
         code.to_string()
     };
-    let session = login::finish_with_otp(&code).await?;
+    let mut slot = local::read_pending()?;
+    let res = login::finish_with_otp(&mut slot, &code, &previous_session()).await;
+    local::write_pending(slot.as_ref())?;
+    let session = res?;
+    FileSessionStore::default_path()?.write(&session)?;
     login_ok(out, &session).await;
     Ok(())
 }
 
 async fn finish_wait(out: Output, timeout: std::time::Duration) -> Result<()> {
-    match login::wait_for_approval(timeout).await? {
+    let mut slot = local::read_pending()?;
+    let res = login::wait_for_approval(&mut slot, timeout, &previous_session()).await;
+    local::write_pending(slot.as_ref())?;
+    match res? {
         login::WaitOutcome::LoggedIn(s) => {
+            FileSessionStore::default_path()?.write(&s)?;
             login_ok(out, &s).await;
             Ok(())
         }
-        login::WaitOutcome::StillWaiting(p) => {
+        login::WaitOutcome::StillWaiting => {
             if out.is_json() {
-                out.json(&login::pending_json(&p, grabcli_core::jwt::now()));
+                if let Some(p) = &slot {
+                    out.json(&login::pending_json(p, grabcli_core::jwt::now()));
+                }
             } else {
                 out.line("not approved yet; approve in the Grab app, then run `grab auth login --poll` again");
             }
@@ -472,7 +504,9 @@ async fn run_login(out: Output, a: LoginArgs) -> Result<()> {
         ));
     }
     if a.cancel {
-        let had = login::cancel().await?;
+        let mut slot = local::read_pending()?;
+        let had = login::cancel(&mut slot).await;
+        local::write_pending(None)?;
         if out.is_json() {
             out.json(&json!({"kind": "cancelled", "had_pending": had}));
         } else {
@@ -508,7 +542,7 @@ async fn run_login(out: Output, a: LoginArgs) -> Result<()> {
 
     if a.dry_run {
         let now = grabcli_core::jwt::now();
-        let log = login::SendLog::load()?;
+        let log = FileSendBudget::default_path()?.log()?;
         let mut plan = login::dry_run_plan(&masked, a.channel, &a.cdp, &log, now);
         plan["phone_source"] = json!(if a.phone_from_config {
             "config"
@@ -518,7 +552,7 @@ async fn run_login(out: Output, a: LoginArgs) -> Result<()> {
         let reach = cdp::pages(&a.cdp).await;
         plan["browser_reachable"] = json!(reach.is_ok());
         plan["order_tracking_tabs"] = json!(tabs);
-        if let Some(p) = login::PendingLogin::read()? {
+        if let Some(p) = local::read_pending()? {
             plan["pending"] = p.summary(now);
         }
         if out.is_json() {
@@ -566,12 +600,21 @@ async fn run_login(out: Output, a: LoginArgs) -> Result<()> {
         Err(e) => return Err(e),
     }
     warn_tabs(out, &tabs);
-    let p = login::start(login::StartOpts {
-        cdp_base: &a.cdp,
-        phone,
-        channel: a.channel,
-    })
+    let mut slot = local::read_pending()?;
+    let checked = login::check_no_pending(&mut slot, grabcli_core::jwt::now()).await;
+    local::write_pending(slot.as_ref())?;
+    checked?;
+    let p = login::start(
+        login::StartOpts {
+            cdp_base: &a.cdp,
+            phone,
+            channel: a.channel,
+            copy_browser_address: true,
+        },
+        &FileSendBudget::default_path()?,
+    )
     .await?;
+    local::write_pending(Some(&p))?;
     pending_out(out, &p);
     match p.kind {
         login::PendingKind::ApprovalPending if a.poll => finish_wait(out, a.timeout).await,

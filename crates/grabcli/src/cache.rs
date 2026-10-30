@@ -2,15 +2,18 @@
 //!
 //! The cache only ever holds read-only browse data (search results, menus,
 //! store details, category lists, the restaurant/item catalog and images);
-//! see `grabcli_core::cache`.
+//! see `grabcli_core::cache`. The database is `grabcli_sqlite::SqliteCache`.
 
 use bpaf::Bpaf;
-use grabcli_core::cache::{Cache, CacheKind, CacheMode, CacheStats};
-use grabcli_core::config::Config;
+use std::sync::Arc;
+
+use grabcli_core::cache::{CacheHandle, CacheKind, CacheMode};
 use grabcli_core::error::Result;
-use grabcli_core::output::Output;
-use grabcli_core::paths;
+use grabcli_sqlite::{CacheStats, SqliteCache};
 use serde_json::json;
+
+use crate::output::Output;
+use crate::{local, paths};
 
 /// `grab cache <cmd>`.
 #[derive(Debug, Clone, Bpaf)]
@@ -84,7 +87,7 @@ fn size(bytes: u64) -> String {
     }
 }
 
-fn print_stats(out: Output, cache: &Cache, s: &CacheStats) {
+fn print_stats(out: Output, cache: &SqliteCache, s: &CacheStats) {
     if out.is_json() {
         let mut j = serde_json::to_value(s).unwrap_or_default();
         j["ttl_secs"] = CacheKind::ALL
@@ -135,9 +138,9 @@ fn print_stats(out: Output, cache: &Cache, s: &CacheStats) {
 }
 
 pub async fn run(out: Output, cmd: CacheCmd) -> Result<()> {
-    let config = Config::load(&paths::config_path()?)?;
+    let config = local::load_config()?;
     // Reads/writes don't matter here; stats/clear/prune/path work in any mode.
-    let cache = Cache::new(paths::cache_dir()?, config.cache, CacheMode::Normal);
+    let cache = SqliteCache::new(paths::cache_dir()?, config.cache);
     match cmd {
         CacheCmd::Stats { .. } => print_stats(out, &cache, &cache.stats()?),
         CacheCmd::Clear {
@@ -193,11 +196,21 @@ pub async fn run(out: Output, cmd: CacheCmd) -> Result<()> {
             }
         }
         CacheCmd::Image { url, .. } => {
-            let img = cache.fetch_image(&url).await?;
+            let handle = CacheHandle::new(
+                Arc::new(cache.clone()),
+                cache.config().clone(),
+                CacheMode::Normal,
+            );
+            let img = handle.fetch_image(&url).await?;
             if out.is_json() {
                 out.json(&serde_json::to_value(&img)?);
             } else {
-                out.line(img.path.display().to_string());
+                out.line(
+                    img.path
+                        .as_deref()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_default(),
+                );
             }
         }
     }

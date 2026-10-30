@@ -1,23 +1,30 @@
-//! Local cache for read-only browse data, in one SQLite database at
-//! `<cache dir>/cache.sqlite` (WAL, mode 0600, inside a 0700 directory).
+//! The read-only browse cache: the [`Cache`] storage trait plus the
+//! [`CacheHandle`] every service call goes through.
 //!
-//! It has three parts:
+//! The library owns no storage. An embedder passes an `Arc<dyn Cache>` to
+//! [`Context::new`](crate::Context::new): the CLI uses `SqliteCache` (crate
+//! `grabcli-sqlite`, one SQLite database with FTS5 under the cache dir),
+//! tests use [`MemoryCache`], and an embedder that wants no cache uses
+//! [`NoCache`]. A cache stores three things:
 //!
-//! - **Responses** (`entries`): the raw upstream JSON of read-only calls
-//!   (search results, menus, store details, category lists), keyed by the
-//!   SHA-256 of a canonical request identity that includes the rounded
-//!   delivery location, with a per-kind TTL. Raw responses (not parsed
-//!   structs) are stored so struct changes never change what an entry means.
-//! - **Catalog** ([`catalog`]): normalized, queryable restaurants, the
-//!   locations they were seen from, menu categories and menu items, with FTS5
-//!   word + trigram indexes. Service crates upsert into it whenever they fetch
-//!   list or menu data, and query it for offline (`--local`) search.
-//! - **Images** ([`images`]): content-addressed image files under
-//!   `<cache dir>/images/`, indexed in SQLite and evicted LRU by total size.
+//! - **Responses**: the raw upstream JSON of read-only calls (search
+//!   results, menus, store details, category lists), keyed by the SHA-256 of
+//!   a canonical request identity ([`CacheKey`]) that includes the rounded
+//!   delivery location. Raw responses (not parsed structs) are stored so
+//!   struct changes never change what an entry means. TTLs, modes and
+//!   freshness are applied by [`CacheHandle`], not by the backend.
+//! - **Catalog**: normalized, queryable restaurants, where they were seen
+//!   from, menu categories and menu items ([`types`]). Service crates upsert
+//!   into it whenever they fetch list or menu data, and query it for offline
+//!   (`--local`) search.
+//! - **Images**: item images by URL ([`CachedImage`]), optional.
 //!
-//! The cache is best-effort: if the database can't be opened or a row can't
-//! be decoded, reads miss and writes are skipped. A broken cache never fails a
-//! browse command.
+//! The cache is best-effort: a backend error on a read is a miss and a
+//! failed write is skipped. A broken cache never fails a browse command.
+//!
+//! The trait is async (`async_trait`) for the same reason as
+//! [`SessionStore`](crate::store::SessionStore): the context is async and a
+//! backend may be an async database client.
 //!
 //! # Safety: what may be cached
 //!
@@ -25,7 +32,7 @@
 //! pick one. There is deliberately **no** kind for quotes, carts, vouchers,
 //! auth/session/token responses, order submission, order history or tracking:
 //! those must always be fetched live, and adding a kind for them is a safety
-//! regression. The catalog tables likewise only hold restaurant, menu and item
+//! regression. The catalog likewise only holds restaurant, menu and item
 //! data. Commands on the cart → quote → order path use [`CacheMode::Off`] (or
 //! call the API directly) so prices and availability are always fresh before
 //! money moves; with the mode off nothing is read from or written to any part
@@ -45,28 +52,30 @@
 //! let raw: serde_json::Value = cache.get_or_fetch(&key, || ctx.call(&req)).await?;
 //! ```
 
-pub mod catalog;
-pub(crate) mod db;
-pub mod images;
+pub mod memory;
+pub mod types;
 
 use std::collections::BTreeMap;
 use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::Arc;
+use std::time::Duration;
 
-use rusqlite::{Connection, OptionalExtension, params};
+use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::error::{Error, Result};
-use crate::{jwt, paths};
+use crate::error::{Error, ErrorKind, Result};
+use crate::jwt;
 
-pub use catalog::{
-    CategoryRow, ItemHit, ItemQuery, ItemRow, Near, RestaurantHit, RestaurantQuery, RestaurantRow,
+pub use memory::{MemoryCache, NoCache};
+pub use types::{
+    CachedImage, CategoryRow, ItemHit, ItemQuery, ItemRow, Near, RestaurantHit, RestaurantQuery,
+    RestaurantRow, effective_price, haversine_km, image_url_allowed, query_terms,
 };
-pub use images::{CachedImage, image_url_allowed};
 
+/// Environment variable the CLI reads to disable the cache (truthy value).
+/// The library itself never reads the environment.
 /// Environment variable that disables the cache when set to a truthy value.
 pub const NO_CACHE_ENV: &str = "GRAB_NO_CACHE";
 
@@ -139,7 +148,7 @@ pub enum CacheMode {
 
 impl CacheMode {
     /// Resolve the mode from the global CLI flags. `--no-cache` wins over
-    /// `--refresh`. (`GRAB_NO_CACHE` is applied by [`Cache::from_config`].)
+    /// `--refresh`. (`GRAB_NO_CACHE` is applied by the CLI.)
     pub fn from_flags(no_cache: bool, refresh: bool) -> Self {
         if no_cache {
             Self::Off
@@ -242,7 +251,7 @@ fn normalize_value(v: &str) -> String {
     v.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn round_coord_to(c: f64, decimals: usize) -> String {
+pub fn round_coord_to(c: f64, decimals: usize) -> String {
     let s = format!("{c:.decimals$}");
     // Avoid "-0.0000" vs "0.0000" splitting entries.
     if s.trim_start_matches('-')
@@ -314,7 +323,7 @@ impl CacheKey {
     }
 }
 
-pub(crate) fn hex_sha256(bytes: &[u8]) -> String {
+pub fn hex_sha256(bytes: &[u8]) -> String {
     Sha256::digest(bytes)
         .iter()
         .map(|b| format!("{b:02x}"))
@@ -361,167 +370,128 @@ pub fn human_age(secs: i64) -> String {
     }
 }
 
-fn is_fresh(fetched_at: i64, expires_at: i64, ttl_secs: u64, now: i64) -> bool {
+pub fn is_fresh(fetched_at: i64, expires_at: i64, ttl_secs: u64, now: i64) -> bool {
     let ttl = i64::try_from(ttl_secs).unwrap_or(i64::MAX);
     // A timestamp from the future (clock skew) counts as stale. A TTL lowered
     // in config applies to entries written under a longer one.
     now >= fetched_at && now < expires_at && now - fetched_at < ttl
 }
 
-/// Per-kind numbers in [`CacheStats`].
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
-pub struct KindStats {
-    pub entries: u64,
-    pub bytes: u64,
-    pub expired: u64,
+/// One stored response, as a backend keeps it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CacheEntry {
+    /// [`CacheKey::identity`] of the request; a mismatch on read is a miss.
+    pub identity: String,
+    /// The raw response, serialized JSON.
+    pub body: String,
+    pub fetched_at: i64,
+    pub expires_at: i64,
 }
 
-/// Image store numbers in [`CacheStats`].
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
-pub struct ImageStats {
-    /// Distinct files (several URLs may share one).
-    pub files: u64,
-    pub urls: u64,
-    pub bytes: u64,
-    pub max_bytes: u64,
-}
+/// Storage for the read-only browse cache. Object-safe: use it as
+/// `Arc<dyn Cache>`. Backends store and return data; TTLs, modes and the
+/// read-only safety rules are applied by [`CacheHandle`].
+///
+/// Responses are keyed by [`CacheKey::hash`] (namespace and kind are on the
+/// key for housekeeping). Catalog upserts must not erase known fields with
+/// unknowns (a row without cuisines keeps the stored ones). Images are
+/// optional: the default methods store nothing.
+#[async_trait]
+pub trait Cache: Send + Sync {
+    /// The stored entry for `key` (expired or not), if any.
+    async fn get_entry(&self, key: &CacheKey) -> Result<Option<CacheEntry>>;
+    /// Insert or replace the entry for `key`.
+    async fn put_entry(&self, key: &CacheKey, entry: &CacheEntry) -> Result<()>;
 
-/// `grab cache stats`.
-#[derive(Debug, Clone, Default, Serialize)]
-pub struct CacheStats {
-    /// The cache directory.
-    pub path: String,
-    pub db_path: String,
-    /// Database + WAL size on disk.
-    pub db_bytes: u64,
-    pub schema_version: u64,
-    pub enabled: bool,
-    pub entries: u64,
-    /// Total size of stored response bodies.
-    pub total_bytes: u64,
-    pub expired: u64,
-    pub kinds: BTreeMap<String, KindStats>,
-    /// Row counts of the catalog tables.
-    pub tables: BTreeMap<String, u64>,
-    pub images: ImageStats,
-}
+    /// Upsert restaurants seen in a list response. `seen_from` is the
+    /// delivery location of the request; when given, each row's distance /
+    /// ETA / fee are also recorded for that location.
+    async fn index_restaurants(
+        &self,
+        rows: &[RestaurantRow],
+        seen_from: Option<(f64, f64)>,
+        now: i64,
+    ) -> Result<()>;
+    /// Upsert individual items (e.g. dish hits), keeping known categories.
+    async fn index_items(&self, items: &[ItemRow], now: i64) -> Result<()>;
+    /// Store a full menu: the restaurant, its categories (replacing the old
+    /// ones) and items; items no longer on the menu are removed.
+    async fn index_menu(
+        &self,
+        restaurant: &RestaurantRow,
+        categories: &[CategoryRow],
+        items: &[ItemRow],
+        seen_from: Option<(f64, f64)>,
+        now: i64,
+    ) -> Result<()>;
+    /// Query restaurants in the catalog.
+    async fn search_restaurants(&self, q: &RestaurantQuery) -> Result<Vec<RestaurantHit>>;
+    /// Query menu items in the catalog.
+    async fn search_items(&self, q: &ItemQuery) -> Result<Vec<ItemHit>>;
+    /// One restaurant by id.
+    async fn restaurant(&self, id: &str) -> Result<Option<RestaurantHit>>;
 
-/// What `grab cache prune` removed.
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
-pub struct PruneReport {
-    pub entries: u64,
-    pub restaurants: u64,
-    pub restaurant_locations: u64,
-    pub menu_categories: u64,
-    pub menu_items: u64,
-    pub images_evicted: u64,
-    pub image_bytes_freed: u64,
-}
-
-/// What `grab cache clear --all` removed.
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
-pub struct ClearReport {
-    pub entries: u64,
-    pub catalog_rows: u64,
-    pub images: u64,
-}
-
-/// The lazily opened database, shared by clones of a [`Cache`].
-#[derive(Default)]
-struct DbCell {
-    conn: OnceLock<std::result::Result<Mutex<Connection>, String>>,
-}
-
-impl std::fmt::Debug for DbCell {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let state = match self.conn.get() {
-            None => "unopened",
-            Some(Ok(_)) => "open",
-            Some(Err(_)) => "failed",
-        };
-        f.debug_struct("DbCell").field("state", &state).finish()
+    /// The stored image for `url`, marking it recently used.
+    async fn image(&self, _url: &str, _now: i64) -> Result<Option<CachedImage>> {
+        Ok(None)
+    }
+    /// Store downloaded image bytes for `url`.
+    async fn put_image(
+        &self,
+        _url: &str,
+        _bytes: &[u8],
+        _content_type: &str,
+        _now: i64,
+    ) -> Result<CachedImage> {
+        Err(Error::invalid("this cache does not store images"))
     }
 }
 
-/// A handle on the cache database plus the active mode and TTLs. Cheap to
-/// clone (clones share one connection); clone it out of the
-/// [`Context`](crate::Context) to use [`get_or_fetch`](Self::get_or_fetch)
-/// with a closure that borrows the context. The database is opened on first
-/// use.
-#[derive(Debug, Clone)]
-pub struct Cache {
-    root: PathBuf,
+/// A [`Cache`] backend plus the active [`CacheMode`] and TTLs. Cheap to clone
+/// (clones share the backend); clone it out of the
+/// [`Context`](crate::Context) to call [`get_or_fetch`](Self::get_or_fetch)
+/// with a closure that borrows the context.
+#[derive(Clone)]
+pub struct CacheHandle {
+    backend: Arc<dyn Cache>,
     config: CacheConfig,
     mode: CacheMode,
-    db: Arc<DbCell>,
 }
 
-fn env_disables_cache() -> bool {
-    std::env::var(NO_CACHE_ENV).is_ok_and(|v| {
-        let v = v.trim().to_ascii_lowercase();
-        !(v.is_empty() || v == "0" || v == "false" || v == "no")
-    })
+impl std::fmt::Debug for CacheHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CacheHandle")
+            .field("mode", &self.mode)
+            .finish_non_exhaustive()
+    }
 }
 
-impl Cache {
-    /// A cache rooted at `root` (the database is `root/cache.sqlite`).
+/// Largest image we will download.
+const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+
+impl CacheHandle {
     /// `config.enabled == false` forces [`CacheMode::Off`].
-    pub fn new(root: impl Into<PathBuf>, config: CacheConfig, mode: CacheMode) -> Self {
+    pub fn new(backend: Arc<dyn Cache>, config: CacheConfig, mode: CacheMode) -> Self {
         let mode = if config.enabled() {
             mode
         } else {
             CacheMode::Off
         };
         Self {
-            root: root.into(),
+            backend,
             config,
             mode,
-            db: Arc::new(DbCell::default()),
         }
     }
 
-    /// The production cache: [`paths::cache_dir`], the `[cache]` config, and
-    /// `GRAB_NO_CACHE=1` forcing it off. If the cache dir can't be resolved the
-    /// cache is simply off.
-    pub fn from_config(config: &CacheConfig, mode: CacheMode) -> Self {
-        let mode = if env_disables_cache() {
-            CacheMode::Off
-        } else {
-            mode
-        };
-        match paths::cache_dir() {
-            Ok(root) => Self::new(root, config.clone(), mode),
-            Err(_) => Self::new(PathBuf::new(), config.clone(), CacheMode::Off),
-        }
-    }
-
-    /// The same cache (sharing its connection) with another mode; still off if
-    /// disabled in config.
+    /// The same backend with another mode; still off if disabled in config.
     #[must_use]
     pub fn with_mode(&self, mode: CacheMode) -> Self {
-        Self {
-            root: self.root.clone(),
-            config: self.config.clone(),
-            mode: if self.config.enabled() {
-                mode
-            } else {
-                CacheMode::Off
-            },
-            db: Arc::clone(&self.db),
-        }
+        Self::new(Arc::clone(&self.backend), self.config.clone(), mode)
     }
 
     pub fn mode(&self) -> CacheMode {
         self.mode
-    }
-
-    /// The cache directory.
-    pub fn root(&self) -> &Path {
-        &self.root
-    }
-
-    pub fn db_path(&self) -> PathBuf {
-        self.root.join(db::DB_FILE)
     }
 
     pub fn config(&self) -> &CacheConfig {
@@ -532,39 +502,32 @@ impl Cache {
         self.config.ttl(kind)
     }
 
-    /// The open connection, opening it on first use. `Err` carries why the
-    /// database is unavailable.
-    fn conn(&self) -> Result<MutexGuard<'_, Connection>> {
-        if self.root.as_os_str().is_empty() {
-            return Err(Error::invalid("no cache directory"));
-        }
-        let cell = self.db.conn.get_or_init(|| {
-            db::open(&self.db_path(), jwt::now())
-                .map(Mutex::new)
-                .map_err(|e| e.message)
-        });
-        match cell {
-            Ok(m) => Ok(m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)),
-            Err(msg) => Err(Error::new(crate::error::ErrorKind::Io, msg.clone())),
-        }
+    /// The backend, for housekeeping outside the mode rules.
+    pub fn backend(&self) -> &Arc<dyn Cache> {
+        &self.backend
     }
 
     /// A fresh cached value, if reads are enabled and one exists. Any problem
     /// reading or decoding the entry is a miss.
-    pub fn get<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<T> {
-        self.lookup(key).map(|f| f.value)
+    pub async fn get<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<T> {
+        self.lookup(key).await.map(|f| f.value)
     }
 
     /// Like [`get`](Self::get), with the time the entry was fetched.
-    pub fn lookup<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<Fetched<T>> {
-        self.lookup_at(key, jwt::now())
+    pub async fn lookup<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<Fetched<T>> {
+        self.lookup_at(key, jwt::now()).await
     }
 
-    fn lookup_at<T: DeserializeOwned>(&self, key: &CacheKey, now: i64) -> Option<Fetched<T>> {
+    #[doc(hidden)]
+    pub async fn lookup_at<T: DeserializeOwned>(
+        &self,
+        key: &CacheKey,
+        now: i64,
+    ) -> Option<Fetched<T>> {
         if !self.mode.reads() {
             return None;
         }
-        let (value, fetched_at, expires_at) = self.read_entry(key)?;
+        let (value, fetched_at, expires_at) = self.read_entry(key).await?;
         is_fresh(fetched_at, expires_at, self.ttl(key.kind()), now).then_some(Fetched {
             value,
             cached_at: Some(fetched_at),
@@ -574,65 +537,45 @@ impl Cache {
     /// The stored value for `key` even if it has expired (but not yet been
     /// pruned), for falling back when the live call fails. `None` when the
     /// mode is off.
-    pub fn lookup_stale<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<Fetched<T>> {
+    pub async fn lookup_stale<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<Fetched<T>> {
         if !self.mode.writes() {
             return None;
         }
-        let (value, fetched_at, _) = self.read_entry(key)?;
+        let (value, fetched_at, _) = self.read_entry(key).await?;
         Some(Fetched {
             value,
             cached_at: Some(fetched_at),
         })
     }
 
-    fn read_entry<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<(T, i64, i64)> {
-        let conn = self.conn().ok()?;
-        let row: (String, String, i64, i64) = conn
-            .query_row(
-                "SELECT identity, body, fetched_at, expires_at FROM entries WHERE key = ?1",
-                [key.hash()],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-            )
-            .optional()
-            .ok()??;
-        drop(conn);
-        let (identity, body, fetched_at, expires_at) = row;
+    async fn read_entry<T: DeserializeOwned>(&self, key: &CacheKey) -> Option<(T, i64, i64)> {
+        let e = self.backend.get_entry(key).await.ok()??;
         // A hash collision or tampered row is a miss.
-        if identity != key.identity() {
+        if e.identity != key.identity() {
             return None;
         }
-        let value = serde_json::from_str(&body).ok()?;
-        Some((value, fetched_at, expires_at))
+        let value = serde_json::from_str(&e.body).ok()?;
+        Some((value, e.fetched_at, e.expires_at))
     }
 
     /// Store a value (no-op when writes are off or the kind's TTL is 0).
-    pub fn put<T: Serialize>(&self, key: &CacheKey, value: &T) -> Result<()> {
-        self.put_at(key, value, jwt::now())
+    pub async fn put<T: Serialize>(&self, key: &CacheKey, value: &T) -> Result<()> {
+        self.put_at(key, value, jwt::now()).await
     }
 
-    fn put_at<T: Serialize>(&self, key: &CacheKey, value: &T, now: i64) -> Result<()> {
+    #[doc(hidden)]
+    pub async fn put_at<T: Serialize>(&self, key: &CacheKey, value: &T, now: i64) -> Result<()> {
         let ttl = self.ttl(key.kind());
         if !self.mode.writes() || ttl == 0 {
             return Ok(());
         }
-        let body = serde_json::to_string(value)?;
-        let expires_at = now.saturating_add(i64::try_from(ttl).unwrap_or(i64::MAX));
-        let conn = self.conn()?;
-        conn.execute(
-            "INSERT OR REPLACE INTO entries \
-             (key, namespace, kind, identity, body, fetched_at, expires_at, etag) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
-            params![
-                key.hash(),
-                key.namespace(),
-                key.kind().as_str(),
-                key.identity(),
-                body,
-                now,
-                expires_at
-            ],
-        )?;
-        Ok(())
+        let entry = CacheEntry {
+            identity: key.identity(),
+            body: serde_json::to_string(value)?,
+            fetched_at: now,
+            expires_at: now.saturating_add(i64::try_from(ttl).unwrap_or(i64::MAX)),
+        };
+        self.backend.put_entry(key, &entry).await
     }
 
     /// Return the cached value for `key`, or run `fetch`, store its result
@@ -655,143 +598,142 @@ impl Cache {
         F: FnOnce() -> Fut,
         Fut: Future<Output = Result<T>>,
     {
-        if let Some(hit) = self.lookup(key) {
+        if let Some(hit) = self.lookup(key).await {
             return Ok(hit);
         }
         let value = fetch().await?;
-        let _ = self.put(key, &value);
+        let _ = self.put(key, &value).await;
         Ok(Fetched::live(value))
     }
 
-    pub fn stats(&self) -> Result<CacheStats> {
-        self.stats_at(jwt::now())
+    /// Upsert restaurants seen in a list response (no-op when writes are off).
+    pub async fn index_restaurants(
+        &self,
+        rows: &[RestaurantRow],
+        seen_from: Option<(f64, f64)>,
+    ) -> Result<()> {
+        if !self.mode.writes() || rows.is_empty() {
+            return Ok(());
+        }
+        self.backend
+            .index_restaurants(rows, seen_from, jwt::now())
+            .await
     }
 
-    fn stats_at(&self, now: i64) -> Result<CacheStats> {
-        let mut s = CacheStats {
-            path: self.root.display().to_string(),
-            db_path: self.db_path().display().to_string(),
-            enabled: self.config.enabled(),
-            ..CacheStats::default()
-        };
-        for kind in CacheKind::ALL {
-            s.kinds.insert(kind.as_str().into(), KindStats::default());
+    /// Upsert individual items (no-op when writes are off).
+    pub async fn index_items(&self, items: &[ItemRow]) -> Result<()> {
+        if !self.mode.writes() || items.is_empty() {
+            return Ok(());
         }
+        self.backend.index_items(items, jwt::now()).await
+    }
+
+    /// Store a full menu (no-op when writes are off).
+    pub async fn index_menu(
+        &self,
+        restaurant: &RestaurantRow,
+        categories: &[CategoryRow],
+        items: &[ItemRow],
+        seen_from: Option<(f64, f64)>,
+    ) -> Result<()> {
+        if !self.mode.writes() || restaurant.id.is_empty() {
+            return Ok(());
+        }
+        self.backend
+            .index_menu(restaurant, categories, items, seen_from, jwt::now())
+            .await
+    }
+
+    /// Query restaurants in the catalog (works in every mode: it only reads
+    /// what earlier fetches stored).
+    pub async fn search_restaurants(&self, q: &RestaurantQuery) -> Result<Vec<RestaurantHit>> {
+        self.backend.search_restaurants(q).await
+    }
+
+    /// Query menu items in the catalog.
+    pub async fn search_items(&self, q: &ItemQuery) -> Result<Vec<ItemHit>> {
+        self.backend.search_items(q).await
+    }
+
+    /// One restaurant by id.
+    pub async fn restaurant(&self, id: &str) -> Result<Option<RestaurantHit>> {
+        self.backend.restaurant(id).await
+    }
+
+    /// The cached image for `url`, if present. `None` when the mode is off.
+    pub async fn cached_image(&self, url: &str) -> Option<CachedImage> {
+        if !self.mode.reads() && !self.mode.writes() {
+            return None;
+        }
+        self.backend.image(url, jwt::now()).await.ok().flatten()
+    }
+
+    /// Store downloaded image bytes (refused when writes are off).
+    pub async fn store_image(
+        &self,
+        url: &str,
+        bytes: &[u8],
+        content_type: &str,
+    ) -> Result<CachedImage> {
+        if !self.mode.writes() {
+            return Err(Error::invalid("the cache is off; images are not stored"));
+        }
+        self.backend
+            .put_image(url, bytes, content_type, jwt::now())
+            .await
+    }
+
+    /// The cached image for `url`, downloading it first if needed. Only Grab
+    /// CDN URLs are fetched ([`image_url_allowed`]); no cookies are sent.
+    pub async fn fetch_image(&self, url: &str) -> Result<CachedImage> {
+        if !image_url_allowed(url) {
+            return Err(Error::new(
+                ErrorKind::UrlNotAllowed,
+                "only https image URLs on grab.com hosts can be cached",
+            ));
+        }
+        if let Some(hit) = self.cached_image(url).await {
+            return Ok(hit);
+        }
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+        let resp = client.get(url).send().await?;
+        let status = resp.status();
+        if !status.is_success() {
+            return Err(Error::new(
+                if status.as_u16() == 404 {
+                    ErrorKind::NotFound
+                } else {
+                    ErrorKind::Api
+                },
+                format!("{} fetching image", status.as_u16()),
+            ));
+        }
+        let content_type = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string();
+        if !content_type.to_ascii_lowercase().starts_with("image/") {
+            return Err(Error::new(
+                ErrorKind::Api,
+                format!("not an image (content-type `{content_type}`)"),
+            ));
+        }
+        if resp
+            .content_length()
+            .is_some_and(|l| l > MAX_IMAGE_BYTES as u64)
         {
-            let conn = self.conn()?;
-            s.schema_version = u64::try_from(db::schema_version(&conn)?).unwrap_or(0);
-            let mut stmt = conn.prepare(
-                "SELECT kind, fetched_at, expires_at, length(CAST(body AS BLOB)) FROM entries",
-            )?;
-            let rows = stmt.query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, i64>(1)?,
-                    r.get::<_, i64>(2)?,
-                    r.get::<_, i64>(3)?,
-                ))
-            })?;
-            for row in rows {
-                let (kind, fetched_at, expires_at, bytes) = row?;
-                let bytes = u64::try_from(bytes).unwrap_or(0);
-                let ttl = kind.parse::<CacheKind>().map(|k| self.ttl(k)).unwrap_or(0);
-                let k = s.kinds.entry(kind).or_default();
-                k.entries += 1;
-                k.bytes += bytes;
-                s.entries += 1;
-                s.total_bytes += bytes;
-                if !is_fresh(fetched_at, expires_at, ttl, now) {
-                    k.expired += 1;
-                    s.expired += 1;
-                }
-            }
-            drop(stmt);
-            for table in catalog::TABLES {
-                let n: i64 =
-                    conn.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))?;
-                s.tables
-                    .insert(table.to_string(), u64::try_from(n).unwrap_or(0));
-            }
-            s.images = images::stats(&conn, self.config.image_max_bytes())?;
+            return Err(Error::invalid("image is too large"));
         }
-        s.db_bytes = db::db_size(&self.db_path());
-        Ok(s)
-    }
-
-    /// Remove response entries, optionally only of one kind and/or only
-    /// expired ones. Returns how many were removed. Catalog rows and images are
-    /// kept (see [`clear_all`](Self::clear_all) / [`prune`](Self::prune)).
-    pub fn clear(&self, kind: Option<CacheKind>, expired_only: bool) -> Result<u64> {
-        self.clear_at(kind, expired_only, jwt::now())
-    }
-
-    fn clear_at(&self, kind: Option<CacheKind>, expired_only: bool, now: i64) -> Result<u64> {
-        let conn = self.conn()?;
-        let mut removed = 0;
-        let kinds: Vec<CacheKind> = kind.map_or_else(|| CacheKind::ALL.to_vec(), |k| vec![k]);
-        for k in kinds {
-            let n = if expired_only {
-                let ttl = i64::try_from(self.ttl(k)).unwrap_or(i64::MAX);
-                conn.execute(
-                    "DELETE FROM entries WHERE kind = ?1 AND \
-                     (expires_at <= ?2 OR fetched_at > ?2 OR ?2 - fetched_at >= ?3)",
-                    params![k.as_str(), now, ttl],
-                )?
-            } else {
-                conn.execute("DELETE FROM entries WHERE kind = ?1", [k.as_str()])?
-            };
-            removed += n as u64;
+        let bytes = resp.bytes().await?;
+        if bytes.len() > MAX_IMAGE_BYTES {
+            return Err(Error::invalid("image is too large"));
         }
-        if kind.is_none() && !expired_only {
-            // Rows of kinds this binary doesn't know (written by another
-            // version) go too.
-            removed += conn.execute("DELETE FROM entries", [])? as u64;
-        }
-        Ok(removed)
-    }
-
-    /// Remove everything: responses, catalog rows and image files.
-    pub fn clear_all(&self) -> Result<ClearReport> {
-        let mut report = ClearReport::default();
-        {
-            let conn = self.conn()?;
-            report.entries = conn.execute("DELETE FROM entries", [])? as u64;
-            for table in catalog::TABLES {
-                report.catalog_rows += conn.execute(&format!("DELETE FROM {table}"), [])? as u64;
-            }
-            report.images = images::clear(&conn, &self.root)?;
-            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")?;
-        }
-        Ok(report)
-    }
-
-    /// Housekeeping: drop expired responses, catalog rows older than
-    /// `index_max_age_days`, and evict images over `image_max_mb` (LRU), then
-    /// compact the database.
-    pub fn prune(&self) -> Result<PruneReport> {
-        self.prune_at(jwt::now())
-    }
-
-    fn prune_at(&self, now: i64) -> Result<PruneReport> {
-        let mut report = PruneReport {
-            entries: self.clear_at(None, true, now)?,
-            ..PruneReport::default()
-        };
-        let conn = self.conn()?;
-        // Entries of unknown kinds past their stored expiry.
-        report.entries += conn.execute("DELETE FROM entries WHERE expires_at <= ?1", [now])? as u64;
-        let cutoff =
-            now.saturating_sub(i64::try_from(self.config.index_max_age_secs()).unwrap_or(i64::MAX));
-        let c = catalog::prune_older_than(&conn, cutoff)?;
-        report.restaurants = c[0];
-        report.restaurant_locations = c[1];
-        report.menu_categories = c[2];
-        report.menu_items = c[3];
-        let (n, bytes) = images::evict(&conn, &self.root, self.config.image_max_bytes())?;
-        report.images_evicted = n;
-        report.image_bytes_freed = bytes;
-        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA optimize;")?;
-        Ok(report)
+        self.store_image(url, &bytes, &content_type).await
     }
 }
 
@@ -800,8 +742,10 @@ mod tests {
     use super::*;
     use serde_json::{Value, json};
 
-    fn cache(dir: &Path, mode: CacheMode) -> Cache {
-        Cache::new(dir, CacheConfig::default(), mode)
+    fn handle(mode: CacheMode) -> (Arc<MemoryCache>, CacheHandle) {
+        let mem = Arc::new(MemoryCache::default());
+        let h = CacheHandle::new(mem.clone(), CacheConfig::default(), mode);
+        (mem, h)
     }
 
     fn key() -> CacheKey {
@@ -810,8 +754,8 @@ mod tests {
             .location(1.23, 103.81)
     }
 
-    fn get_at(c: &Cache, k: &CacheKey, now: i64) -> Option<Value> {
-        c.lookup_at::<Value>(k, now).map(|f| f.value)
+    async fn get_at(c: &CacheHandle, k: &CacheKey, now: i64) -> Option<Value> {
+        c.lookup_at::<Value>(k, now).await.map(|f| f.value)
     }
 
     #[test]
@@ -840,92 +784,84 @@ mod tests {
         assert_eq!(round_coord(-0.000_01), round_coord(0.0));
     }
 
-    #[test]
-    fn roundtrip_and_ttl_expiry() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let c = cache(dir.path(), CacheMode::Normal);
+    #[tokio::test]
+    async fn roundtrip_and_ttl_expiry() -> Result<()> {
+        let (_, c) = handle(CacheMode::Normal);
         let k = key();
         let v = json!({"merchant": {"ID": "2-EXAMPLE"}});
-        c.put_at(&k, &v, 1_000)?;
-        assert_eq!(get_at(&c, &k, 1_000), Some(v.clone()));
+        c.put_at(&k, &v, 1_000).await?;
+        assert_eq!(get_at(&c, &k, 1_000).await, Some(v.clone()));
         let ttl = CacheKind::Menu.default_ttl() as i64;
-        let hit = c.lookup_at::<Value>(&k, 1_000 + ttl - 1);
+        let hit = c.lookup_at::<Value>(&k, 1_000 + ttl - 1).await;
         assert_eq!(hit.map(|h| h.cached_at), Some(Some(1_000)));
-        assert_eq!(get_at(&c, &k, 1_000 + ttl), None);
+        assert_eq!(get_at(&c, &k, 1_000 + ttl).await, None);
         // Clock skew: an entry from the future is stale.
-        assert_eq!(get_at(&c, &k, 999), None);
+        assert_eq!(get_at(&c, &k, 999).await, None);
         // Expired but not pruned: still available as a stale fallback.
-        assert!(c.lookup_stale::<Value>(&k).is_some());
+        assert!(c.lookup_stale::<Value>(&k).await.is_some());
         Ok(())
     }
 
-    #[test]
-    fn config_ttl_override_and_disable() -> Result<()> {
-        let dir = tempfile::tempdir()?;
+    #[tokio::test]
+    async fn config_ttl_override_and_disable() -> Result<()> {
+        let mem = Arc::new(MemoryCache::default());
         let cfg: CacheConfig = toml::from_str("[ttl]\nmenu = 5\nlist = 0\n")
             .map_err(|e| Error::invalid(e.to_string()))?;
-        let c = Cache::new(dir.path(), cfg, CacheMode::Normal);
+        let c = CacheHandle::new(mem.clone(), cfg, CacheMode::Normal);
         let k = key();
-        c.put_at(&k, &json!(1), 100)?;
-        assert_eq!(get_at(&c, &k, 104), Some(json!(1)));
-        assert_eq!(get_at(&c, &k, 105), None);
+        c.put_at(&k, &json!(1), 100).await?;
+        assert_eq!(get_at(&c, &k, 104).await, Some(json!(1)));
+        assert_eq!(get_at(&c, &k, 105).await, None);
         // TTL 0: never written.
         let lk = CacheKey::new("food", CacheKind::List, "search");
-        c.put_at(&lk, &json!(1), 100)?;
-        assert_eq!(c.stats_at(100)?.kinds["list"].entries, 0);
+        c.put_at(&lk, &json!(1), 100).await?;
+        assert!(mem.get_entry(&lk).await?.is_none());
 
         // A lowered TTL applies to entries written under a longer one.
-        let long = cache(dir.path(), CacheMode::Normal);
-        long.put_at(&k, &json!(2), 100)?;
-        assert_eq!(get_at(&c, &k, 110), None);
-        assert_eq!(get_at(&long, &k, 110), Some(json!(2)));
+        let long = CacheHandle::new(mem.clone(), CacheConfig::default(), CacheMode::Normal);
+        long.put_at(&k, &json!(2), 100).await?;
+        assert_eq!(get_at(&c, &k, 110).await, None);
+        assert_eq!(get_at(&long, &k, 110).await, Some(json!(2)));
 
         let off: CacheConfig =
             toml::from_str("enabled = false").map_err(|e| Error::invalid(e.to_string()))?;
-        assert_eq!(
-            Cache::new(dir.path(), off.clone(), CacheMode::Normal).mode(),
-            CacheMode::Off
-        );
-        assert_eq!(
-            Cache::new(dir.path(), off, CacheMode::Normal)
-                .with_mode(CacheMode::Refresh)
-                .mode(),
-            CacheMode::Off
-        );
+        let h = CacheHandle::new(mem, off, CacheMode::Normal);
+        assert_eq!(h.mode(), CacheMode::Off);
+        assert_eq!(h.with_mode(CacheMode::Refresh).mode(), CacheMode::Off);
         Ok(())
     }
 
-    #[test]
-    fn bad_rows_are_misses() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let c = cache(dir.path(), CacheMode::Normal);
+    #[tokio::test]
+    async fn bad_rows_are_misses() -> Result<()> {
+        let (mem, c) = handle(CacheMode::Normal);
         let k = key();
         // Wrong payload type for T: a miss, not an error.
-        c.put(&k, &json!("a string"))?;
-        assert_eq!(c.get::<Vec<u32>>(&k), None);
+        c.put(&k, &json!("a string")).await?;
+        assert_eq!(c.get::<Vec<u32>>(&k).await, None);
         // A hash collision / tampered identity is a miss.
-        c.conn()?
-            .execute("UPDATE entries SET identity = 'something else'", [])?;
-        assert_eq!(c.get::<Value>(&k), None);
+        let mut e = mem
+            .get_entry(&k)
+            .await?
+            .ok_or_else(|| Error::invalid("none"))?;
+        e.identity = "something else".into();
+        mem.put_entry(&k, &e).await?;
+        assert_eq!(c.get::<Value>(&k).await, None);
         // Unparseable body: a miss.
-        c.put(&k, &json!(1))?;
-        c.conn()?.execute("UPDATE entries SET body = '{nope'", [])?;
-        assert_eq!(c.get::<Value>(&k), None);
-
-        // An unusable cache dir: reads miss, get_or_fetch still works.
-        let file = dir.path().join("not-a-dir");
-        std::fs::write(&file, b"x")?;
-        let broken = cache(&file, CacheMode::Normal);
-        assert_eq!(broken.get::<Value>(&k), None);
-        assert!(broken.put(&k, &json!(1)).is_err());
+        c.put(&k, &json!(1)).await?;
+        let mut e = mem
+            .get_entry(&k)
+            .await?
+            .ok_or_else(|| Error::invalid("none"))?;
+        e.body = "{nope".into();
+        mem.put_entry(&k, &e).await?;
+        assert_eq!(c.get::<Value>(&k).await, None);
         Ok(())
     }
 
     #[tokio::test]
     async fn modes() -> Result<()> {
-        let dir = tempfile::tempdir()?;
         let k = key();
-        let normal = cache(dir.path(), CacheMode::Normal);
+        let (_, normal) = handle(CacheMode::Normal);
 
         // Normal: miss → fetch + store; then hit without fetching.
         let v = normal
@@ -945,14 +881,19 @@ mod tests {
         let off = normal.with_mode(CacheMode::Off);
         let v: Value = off.get_or_fetch(&k, || async { Ok(json!(2)) }).await?;
         assert_eq!(v, json!(2));
-        assert_eq!(normal.get::<Value>(&k), Some(json!(1)));
-        assert!(off.lookup_stale::<Value>(&k).is_none());
+        assert_eq!(normal.get::<Value>(&k).await, Some(json!(1)));
+        assert!(off.lookup_stale::<Value>(&k).await.is_none());
+        assert!(
+            off.store_image("https://food-cms.grab.com/x.png", b"x", "image/png")
+                .await
+                .is_err()
+        );
 
         // Refresh: always fetches, overwrites the entry.
         let refresh = normal.with_mode(CacheMode::Refresh);
         let v: Value = refresh.get_or_fetch(&k, || async { Ok(json!(3)) }).await?;
         assert_eq!(v, json!(3));
-        assert_eq!(normal.get::<Value>(&k), Some(json!(3)));
+        assert_eq!(normal.get::<Value>(&k).await, Some(json!(3)));
 
         // Errors propagate and are not cached.
         let k2 = key().param("id", "other");
@@ -960,7 +901,7 @@ mod tests {
             .get_or_fetch(&k2, || async { Err(Error::invalid("boom")) })
             .await;
         assert!(r.is_err());
-        assert_eq!(normal.get::<Value>(&k2), None);
+        assert_eq!(normal.get::<Value>(&k2).await, None);
 
         assert_eq!(CacheMode::from_flags(true, true), CacheMode::Off);
         assert_eq!(CacheMode::from_flags(false, true), CacheMode::Refresh);
@@ -968,65 +909,29 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn stats_clear_and_prune() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let c = cache(dir.path(), CacheMode::Normal);
-        let menu = key();
-        let list = CacheKey::new("food", CacheKind::List, "search").param("keyword", "x");
-        let mart = CacheKey::new("mart", CacheKind::Categories, "categories");
-        c.put_at(&menu, &json!({"a": 1}), 0)?; // expired by `now` below
-        c.put_at(&list, &json!([1, 2]), 10_000)?;
-        c.put_at(&mart, &json!([]), 10_000)?;
-        let now = 10_001;
-
-        let s = c.stats_at(now)?;
-        assert_eq!(s.entries, 3);
-        assert_eq!(s.expired, 1);
-        assert!(s.total_bytes > 0);
-        assert!(s.db_bytes > 0);
-        assert_eq!(s.schema_version, db::MIGRATIONS.len() as u64);
-        assert_eq!(s.kinds["menu"].expired, 1);
-        assert_eq!(s.kinds["list"].entries, 1);
-        assert_eq!(s.kinds["categories"].entries, 1);
-        assert_eq!(s.kinds["details"].entries, 0);
-        assert_eq!(s.tables["restaurants"], 0);
-
-        assert_eq!(c.clear_at(None, true, now)?, 1);
-        assert_eq!(c.stats_at(now)?.entries, 2);
-        assert_eq!(c.clear_at(Some(CacheKind::List), false, now)?, 1);
-        assert_eq!(get_at(&c, &list, now), None);
-        assert_eq!(get_at(&c, &mart, now), Some(json!([])));
-
-        // Prune removes what has expired by then.
-        let later = 10_000 + CacheKind::Categories.default_ttl() as i64;
-        let r = c.prune_at(later)?;
-        assert_eq!(r.entries, 1);
-        assert_eq!(c.stats_at(later)?.entries, 0);
-
-        // Expired rows are also pruned (boundedly) when the db is opened.
-        c.put_at(&menu, &json!(1), 0)?;
-        let reopened = cache(dir.path(), CacheMode::Normal);
-        assert_eq!(reopened.stats()?.entries, 0);
+    #[tokio::test]
+    async fn off_mode_skips_catalog_writes() -> Result<()> {
+        let (mem, normal) = handle(CacheMode::Normal);
+        let off = normal.with_mode(CacheMode::Off);
+        let row = RestaurantRow {
+            id: "R1".into(),
+            namespace: "food".into(),
+            name: "Sisig Place".into(),
+            ..RestaurantRow::default()
+        };
+        off.index_restaurants(std::slice::from_ref(&row), None)
+            .await?;
+        assert!(mem.restaurant("R1").await?.is_none());
+        normal.index_restaurants(&[row], None).await?;
+        assert!(off.restaurant("R1").await?.is_some());
         Ok(())
     }
 
-    #[test]
-    #[cfg(unix)]
-    fn private_permissions() -> Result<()> {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = tempfile::tempdir()?;
-        let root = dir.path().join("grabcli");
-        let c = cache(&root, CacheMode::Normal);
-        c.put(&key(), &json!(1))?;
-        assert_eq!(
-            std::fs::metadata(c.db_path())?.permissions().mode() & 0o777,
-            0o600
-        );
-        assert_eq!(
-            std::fs::metadata(&root)?.permissions().mode() & 0o777,
-            0o700
-        );
+    #[tokio::test]
+    async fn no_cache_never_hits() -> Result<()> {
+        let h = CacheHandle::new(Arc::new(NoCache), CacheConfig::default(), CacheMode::Normal);
+        h.put(&key(), &json!(1)).await?;
+        assert_eq!(h.get::<Value>(&key()).await, None);
         Ok(())
     }
 

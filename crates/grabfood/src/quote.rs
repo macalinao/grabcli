@@ -26,7 +26,7 @@ pub struct Promo {
     pub amount: Money,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Quote {
     pub merchant_name: String,
     pub subtotal: Money,

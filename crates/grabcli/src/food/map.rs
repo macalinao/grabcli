@@ -11,13 +11,13 @@ use std::f64::consts::PI;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::paths;
 use ab_glyph::{FontRef, PxScale};
 use grabcli_core::error::{Error, ErrorKind, Result};
-use grabcli_core::paths;
 use image::{Rgba, RgbaImage};
 use imageproc::drawing;
 
-use crate::tracking::{LatLng, Tracking};
+use grabfood::tracking::{LatLng, Tracking};
 
 const TILE: i64 = 256;
 /// Keep the fetch tiny: at most this many tiles on each axis.
@@ -358,7 +358,7 @@ pub async fn render(model: &Tracking, path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tracking;
+    use grabfood::tracking;
 
     #[test]
     fn zoom_fits_tile_budget() {

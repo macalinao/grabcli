@@ -168,13 +168,6 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<rusqlite::Error> for Error {
-    fn from(e: rusqlite::Error) -> Self {
-        // Only the local cache database uses SQLite.
-        Self::new(ErrorKind::Io, format!("cache database: {e}"))
-    }
-}
-
 impl From<reqwest::Error> for Error {
     fn from(e: reqwest::Error) -> Self {
         // reqwest errors can include the URL; ours never carry secrets in the

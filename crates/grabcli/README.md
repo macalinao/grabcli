@@ -17,10 +17,12 @@ first.
 
 ## How it fits
 
-This crate is thin: it parses arguments, owns the `grab auth`,
-`grab saved-places` and `grab cache` commands, and mounts each service's commands (`grab food` from
-[`grabfood`](../grabfood), `grab mart` from [`grabmart`](../grabmart)).
-Shared session, auth and HTTP code lives in [`grabcli-core`](../grabcli-core).
+This crate parses arguments, prints, and owns the files: `config.toml`,
+`session.json`, carts, login state and the SQLite cache
+([`grabcli-sqlite`](../grabcli-sqlite)). Its `grab food` and `grab mart`
+commands call the typed [`grabfood`](../grabfood) and
+[`grabmart`](../grabmart) libraries. Shared session, auth and HTTP code lives
+in [`grabcli-core`](../grabcli-core).
 
 ## License
 

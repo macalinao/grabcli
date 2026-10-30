@@ -1,5 +1,5 @@
-//! Discovery commands: `search`, `nearby`, `recommended`, `cuisines` and
-//! `category`. Lists are fetched page by page through the response cache
+//! Discovery: `search`, `nearby`, `recommended`, `cuisines` and `category`,
+//! each returning a typed [`Listing`] (printing is the CLI's). Lists are fetched page by page through the response cache
 //! (paced, stopping cleanly on a 429), indexed into the local catalog, then
 //! filtered/sorted client-side. If the live call fails, results fall back to
 //! the last stored response or the local catalog, marked with their age.
@@ -16,10 +16,9 @@ use grabcli_core::http::{Hydra, Request};
 use grabcli_core::jwt;
 use grabcli_core::location::Location;
 use grabcli_core::money::Money;
-use grabcli_core::output::Output;
 use serde_json::{Value, json};
 
-use crate::discover::{self, Dish, ListOpts, Merchant, Page, Pesos};
+use crate::discover::{self, ListOpts, Merchant, Page};
 use crate::{CACHE_NS, api, index};
 
 /// Search/category page size the web app sends (the server mostly ignores
@@ -142,7 +141,7 @@ pub enum Source {
 }
 
 impl Source {
-    fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Api => "api",
             Self::Cache => "cache",
@@ -220,7 +219,7 @@ pub async fn fetch_listing(
         let offset = page as usize * src.page_step();
         let key = src.key(loc, offset);
         let cache = ctx.cache().clone();
-        let fetched: Fetched<Value> = match cache.lookup(&key) {
+        let fetched: Fetched<Value> = match cache.lookup(&key).await {
             Some(hit) => hit,
             None => {
                 pacer.wait().await;
@@ -228,12 +227,13 @@ pub async fn fetch_listing(
                 pacer.last = Some(Instant::now());
                 match res {
                     Ok(v) => {
-                        let _ = cache.put(&key, &v);
+                        let _ = cache.put(&key, &v).await;
                         index::index_merchants(
                             &cache,
                             &src.parse(&v).merchants,
                             (loc.latitude, loc.longitude),
-                        );
+                        )
+                        .await;
                         Fetched::live(v)
                     }
                     Err(e) if page > 0 => {
@@ -280,7 +280,7 @@ fn near(loc: &Location, opts: &ListOpts) -> Near {
 /// Results from the local catalog: restaurants matching the text near the
 /// saved address, plus (for searches) restaurants with matching dishes, with
 /// those dishes attached.
-pub fn local_listing(
+pub async fn local_listing(
     ctx: &Context,
     loc: &Location,
     src: &ListSource,
@@ -291,22 +291,26 @@ pub fn local_listing(
     let cache = ctx.cache();
     let near = near(loc, opts);
     let text = src.local_text();
-    let hits = cache.search_restaurants(&RestaurantQuery {
-        text: text.clone(),
-        near: Some(near),
-        namespace: Some(index::NAMESPACE.into()),
-        limit: None,
-    })?;
+    let hits = cache
+        .search_restaurants(&RestaurantQuery {
+            text: text.clone(),
+            near: Some(near),
+            namespace: Some(index::NAMESPACE.into()),
+            limit: None,
+        })
+        .await?;
     let mut merchants: Vec<Merchant> = hits.iter().map(index::merchant_from_hit).collect();
     if with_dishes && let Some(t) = text {
-        let items = cache.search_items(&ItemQuery {
-            text: Some(t),
-            near: Some(near),
-            max_price_minor: max_price.map(Money::minor),
-            available_only: false,
-            restaurant_id: None,
-            limit: Some(500),
-        })?;
+        let items = cache
+            .search_items(&ItemQuery {
+                text: Some(t),
+                near: Some(near),
+                max_price_minor: max_price.map(Money::minor),
+                available_only: false,
+                restaurant_id: None,
+                limit: Some(500),
+            })
+            .await?;
         for it in &items {
             let dish = index::dish_from_hit(it);
             if let Some(m) = merchants.iter_mut().find(|m| m.id == dish.merchant_id) {
@@ -334,7 +338,7 @@ pub fn local_listing(
 /// After a failed live fetch: the last stored first page (even if expired),
 /// else the local catalog. `None` if neither has anything (or the cache is
 /// off).
-fn fallback(
+async fn fallback(
     ctx: &Context,
     loc: &Location,
     src: &ListSource,
@@ -349,7 +353,7 @@ fn fallback(
         return None;
     }
     let reason = Some(format!("{}: {}", err.kind.as_str(), err.message));
-    if let Some(stale) = ctx.cache().lookup_stale::<Value>(&src.key(loc, 0)) {
+    if let Some(stale) = ctx.cache().lookup_stale::<Value>(&src.key(loc, 0)).await {
         let page = src.parse(&stale.value);
         if !page.merchants.is_empty() {
             return Some(Listing {
@@ -364,7 +368,9 @@ fn fallback(
             });
         }
     }
-    let mut local = local_listing(ctx, loc, src, opts, max_price, with_dishes).ok()?;
+    let mut local = local_listing(ctx, loc, src, opts, max_price, with_dishes)
+        .await
+        .ok()?;
     if local.merchants.is_empty() {
         return None;
     }
@@ -383,11 +389,14 @@ async fn get_listing(
 ) -> Result<Listing> {
     match fetch_listing(ctx, loc, src, opts.pages).await {
         Ok(l) => Ok(l),
-        Err(e) => fallback(ctx, loc, src, opts, max_price, with_dishes, &e).ok_or(e),
+        Err(e) => fallback(ctx, loc, src, opts, max_price, with_dishes, &e)
+            .await
+            .ok_or(e),
     }
 }
 
-fn meta_json(l: &Listing, shown: usize) -> Value {
+/// The listing metadata the CLI's `--json` output carries.
+pub fn meta_json(l: &Listing, shown: usize) -> Value {
     let now = jwt::now();
     json!({
         "count": shown,
@@ -403,7 +412,8 @@ fn meta_json(l: &Listing, shown: usize) -> Value {
     })
 }
 
-fn footer(l: &Listing, shown: usize, noun: &str) -> String {
+/// The one-line human summary under a listing.
+pub fn footer(l: &Listing, shown: usize, noun: &str) -> String {
     let mut parts = vec![match l.total {
         Some(t) if l.source != Source::Local => {
             format!(
@@ -437,7 +447,7 @@ fn footer(l: &Listing, shown: usize, noun: &str) -> String {
 }
 
 /// Keep only dishes at or under `max` (dropping merchants left with none).
-fn filter_dish_price(ms: Vec<Merchant>, max: Option<Money>) -> Vec<Merchant> {
+pub fn filter_dish_price(ms: Vec<Merchant>, max: Option<Money>) -> Vec<Merchant> {
     let Some(max) = max else {
         return ms;
     };
@@ -450,126 +460,49 @@ fn filter_dish_price(ms: Vec<Merchant>, max: Option<Money>) -> Vec<Merchant> {
         .collect()
 }
 
-fn print_merchants(out: Output, l: &Listing, ms: &[Merchant], show_dishes: bool) {
-    if out.is_json() {
-        let mut j = meta_json(l, ms.len());
-        j["merchants"] = ms.iter().map(Merchant::to_json).collect();
-        out.json(&j);
-        return;
-    }
-    if ms.is_empty() {
-        out.line("no merchants found");
-    }
-    for m in ms {
-        out.line(m.human_line());
-        if show_dishes {
-            for d in m.dishes.iter().take(3) {
-                out.line(format!("    {}", d.human_line()));
-            }
-            if m.dishes.len() > 3 {
-                out.line(format!("    … {} more dishes", m.dishes.len() - 3));
-            }
-        }
-    }
-    out.line(footer(l, ms.len(), "merchants"));
-}
-
-fn print_dishes(out: Output, l: &Listing, dishes: &[(&Dish, &Merchant)]) {
-    if out.is_json() {
-        let mut j = meta_json(l, dishes.len());
-        j["dishes"] = dishes
-            .iter()
-            .map(|(d, m)| {
-                let mut v = d.to_json();
-                v["merchant"] = json!({
-                    "id": m.id, "name": m.name, "rating": m.rating, "eta_min": m.eta_min,
-                    "distance_km": m.distance_km, "open": m.open,
-                    "delivery_fee_minor": m.fee.map(Money::minor),
-                    "free_delivery": m.free_delivery,
-                });
-                v
-            })
-            .collect();
-        out.json(&j);
-        return;
-    }
-    if dishes.is_empty() {
-        out.line("no dishes found");
-    }
-    for (d, m) in dishes {
-        let mut extra = Vec::new();
-        if let Some(e) = m.eta_min {
-            extra.push(format!("{e} min"));
-        }
-        if let Some(k) = m.distance_km {
-            extra.push(format!("{k:.1} km"));
-        }
-        if let Some(r) = m.rating {
-            extra.push(format!("★{r:.1}"));
-        }
-        out.line(format!(
-            "{}  — {} ({})  {}",
-            d.human_line(),
-            m.name,
-            m.id,
-            extra.join("  ")
-        ));
-    }
-    out.line(footer(l, dishes.len(), "dishes"));
-}
-
-/// `grab food search KEYWORD`.
+/// `grab food search KEYWORD`: merchants (with dish hits) ranked for the
+/// keyword. With `dishes`, dishes are ranked first; apply
+/// [`ListOpts::dishes`] or [`ListOpts::apply`] + [`filter_dish_price`] to
+/// shape the result.
 pub async fn search(
     ctx: &mut Context,
     keyword: &str,
     opts: &ListOpts,
     dishes: bool,
     local: bool,
-    max_price: Option<Pesos>,
-) -> Result<()> {
-    let out = ctx.out;
+    max_price: Option<Money>,
+) -> Result<Listing> {
     let loc = Location::from_session(ctx.session())?;
     let src = ListSource::Search(keyword.to_string());
-    let max_price = max_price.map(|p| p.0);
     let mut listing = if local {
-        local_listing(ctx, &loc, &src, opts, max_price, true)?
+        local_listing(ctx, &loc, &src, opts, max_price, true).await?
     } else {
         get_listing(ctx, &loc, &src, opts, max_price, true).await?
     };
     discover::rank_dishes(&mut listing.merchants, keyword, dishes);
-    if dishes {
-        let ds = opts.dishes(&listing.merchants, max_price);
-        print_dishes(out, &listing, &ds);
-    } else {
-        let ms = filter_dish_price(opts.apply(listing.merchants.clone()), max_price);
-        print_merchants(out, &listing, &ms, true);
-    }
-    Ok(())
+    Ok(listing)
 }
 
 /// `grab food nearby`: the empty-keyword search, i.e. everything that
-/// delivers to the saved address.
-pub async fn nearby(ctx: &mut Context, opts: &ListOpts, local: bool) -> Result<()> {
-    let out = ctx.out;
+/// delivers to the saved address. Filters are not applied (see
+/// [`ListOpts::apply`]).
+pub async fn nearby(ctx: &mut Context, opts: &ListOpts, local: bool) -> Result<Listing> {
     let loc = Location::from_session(ctx.session())?;
     let src = ListSource::Search(String::new());
-    let listing = if local {
-        local_listing(ctx, &loc, &src, opts, None, false)?
+    if local {
+        local_listing(ctx, &loc, &src, opts, None, false).await
     } else {
-        get_listing(ctx, &loc, &src, opts, None, false).await?
-    };
-    print_merchants(out, &listing, &opts.apply(listing.merchants.clone()), false);
-    Ok(())
+        get_listing(ctx, &loc, &src, opts, None, false).await
+    }
 }
 
 /// `grab food recommended`: "Popular near you".
-pub async fn recommended(ctx: &mut Context, opts: &ListOpts) -> Result<()> {
-    let out = ctx.out;
+pub async fn recommended(ctx: &mut Context, opts: &ListOpts) -> Result<Listing> {
     let loc = Location::from_session(ctx.session())?;
     let mut listing = get_listing(ctx, &loc, &ListSource::Recommended, opts, None, false).await?;
     // Recommended entries lack cuisines/fees; fill gaps from the catalog.
     for m in &mut listing.merchants {
-        if let Ok(Some(hit)) = ctx.cache().restaurant(&m.id) {
+        if let Ok(Some(hit)) = ctx.cache().restaurant(&m.id).await {
             let known = index::merchant_from_hit(&hit);
             if m.cuisines.is_empty() {
                 m.cuisines = known.cuisines;
@@ -579,8 +512,7 @@ pub async fn recommended(ctx: &mut Context, opts: &ListOpts) -> Result<()> {
             }
         }
     }
-    print_merchants(out, &listing, &opts.apply(listing.merchants.clone()), false);
-    Ok(())
+    Ok(listing)
 }
 
 /// A home collection from `/category/shortcuts`.
@@ -627,7 +559,7 @@ async fn fetch_shortcuts(ctx: &mut Context, loc: &Location) -> Result<Fetched<Ve
     let req = Request::get(api::shortcuts_url(&loc.latlng()), Hydra::NotNeeded);
     let f = match ctx.cached_call_meta(&key, &req).await {
         Ok(f) => f,
-        Err(e) => match ctx.cache().lookup_stale::<Value>(&key) {
+        Err(e) => match ctx.cache().lookup_stale::<Value>(&key).await {
             Some(stale) => stale,
             None => return Err(e),
         },
@@ -638,47 +570,31 @@ async fn fetch_shortcuts(ctx: &mut Context, loc: &Location) -> Result<Fetched<Ve
     })
 }
 
-/// `grab food cuisines`: the known cuisine shortcuts plus the home
-/// collections near the saved address.
-pub async fn cuisines(ctx: &mut Context) -> Result<()> {
-    let out = ctx.out;
+/// The known cuisine shortcuts ([`CUISINES`]) plus the home collections
+/// near the saved address.
+#[derive(Debug)]
+pub struct Cuisines {
+    pub collections: Vec<Shortcut>,
+    pub cached_at: Option<i64>,
+    /// Why the collections couldn't be fetched (the cuisines still apply).
+    pub error: Option<Error>,
+}
+
+/// `grab food cuisines`.
+pub async fn cuisines(ctx: &mut Context) -> Result<Cuisines> {
     let loc = Location::from_session(ctx.session())?;
-    let (collections, cached_at, error) = match fetch_shortcuts(ctx, &loc).await {
-        Ok(f) => (f.value, f.cached_at, None),
-        Err(e) => (Vec::new(), None, Some(e)),
-    };
-    if out.is_json() {
-        out.json(&json!({
-            "cuisines": CUISINES.iter().map(|(id, name)| json!({"id": id, "name": name})).collect::<Vec<_>>(),
-            "collections": collections.iter().map(|s| json!({
-                "id": s.id, "name": s.name, "description": s.description,
-            })).collect::<Vec<_>>(),
-            "cached_at": cached_at,
-            "age_secs": cached_at.map(|t| (jwt::now() - t).max(0)),
-            "collections_error": error.as_ref().map(|e| e.to_json()["error"].clone()),
-        }));
-        return Ok(());
-    }
-    out.line("cuisines:");
-    for (id, name) in CUISINES {
-        out.line(format!("  {id:>6}  {name}"));
-    }
-    out.line("collections near you:");
-    for s in &collections {
-        if s.description.is_empty() {
-            out.line(format!("  {:>6}  {}", s.id, s.name));
-        } else {
-            out.line(format!("  {:>6}  {} — {}", s.id, s.name, s.description));
-        }
-    }
-    if let Some(e) = error {
-        out.line(format!("  (collections unavailable: {})", e.message));
-    }
-    if let Some(t) = cached_at {
-        out.line(format!("(cached {} ago)", human_age(jwt::now() - t)));
-    }
-    out.line("use `grab food category <id|name>` to list one");
-    Ok(())
+    Ok(match fetch_shortcuts(ctx, &loc).await {
+        Ok(f) => Cuisines {
+            collections: f.value,
+            cached_at: f.cached_at,
+            error: None,
+        },
+        Err(e) => Cuisines {
+            collections: Vec::new(),
+            cached_at: None,
+            error: Some(e),
+        },
+    })
 }
 
 fn fold(s: &str) -> String {
@@ -707,8 +623,12 @@ fn resolve_in(arg: &str, collections: &[Shortcut]) -> Option<(String, String)> {
 }
 
 /// `grab food category <id|name>`.
-pub async fn category(ctx: &mut Context, arg: &str, opts: &ListOpts, local: bool) -> Result<()> {
-    let out = ctx.out;
+pub async fn category(
+    ctx: &mut Context,
+    arg: &str,
+    opts: &ListOpts,
+    local: bool,
+) -> Result<Listing> {
     let loc = Location::from_session(ctx.session())?;
     let arg = arg.trim();
     if arg.is_empty() {
@@ -742,18 +662,17 @@ pub async fn category(ctx: &mut Context, arg: &str, opts: &ListOpts, local: bool
             name
         },
     };
-    let listing = if local {
-        local_listing(ctx, &loc, &src, opts, None, false)?
+    if local {
+        local_listing(ctx, &loc, &src, opts, None, false).await
     } else {
-        get_listing(ctx, &loc, &src, opts, None, false).await?
-    };
-    print_merchants(out, &listing, &opts.apply(listing.merchants.clone()), false);
-    Ok(())
+        get_listing(ctx, &loc, &src, opts, None, false).await
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::discover::Dish;
 
     #[test]
     fn shortcuts_and_resolution() {

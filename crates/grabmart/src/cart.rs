@@ -1,12 +1,9 @@
-//! The local GrabMart cart: one store at a time, stored as JSON in the state
-//! dir (`<state>/mart/cart.json`), separate from the GrabFood cart. Never
+//! A GrabMart cart: one store at a time, separate from the GrabFood cart.
+//! A value the caller keeps (the `grab` CLI stores `<state>/mart/cart.json`). Never
 //! cached; it only records ids, quantities and a price snapshot for display.
-
-use std::path::PathBuf;
 
 use grabcli_core::error::{Error, ErrorKind, Result};
 use grabcli_core::money::Money;
-use grabcli_core::paths;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -35,31 +32,6 @@ pub struct Cart {
 }
 
 impl Cart {
-    pub fn path() -> Result<PathBuf> {
-        Ok(paths::state_dir()?.join("mart").join("cart.json"))
-    }
-
-    pub fn load() -> Result<Self> {
-        let p = Self::path()?;
-        match std::fs::read(&p) {
-            Ok(b) => Ok(serde_json::from_slice(&b)?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn save(&self) -> Result<()> {
-        paths::write_atomic(&Self::path()?, &serde_json::to_vec_pretty(self)?)
-    }
-
-    pub fn clear() -> Result<()> {
-        match std::fs::remove_file(Self::path()?) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
@@ -203,22 +175,6 @@ mod tests {
         assert_eq!(m["items"][0]["ID"], "I2");
         assert_eq!(m["items"][0]["quantity"], 2);
         assert!(m["items"][0].get("modifierGroups").is_none());
-        Ok(())
-    }
-
-    #[test]
-    fn roundtrips_through_state_dir() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        // SAFETY: tests in this crate that touch GRABCLI_STATE_DIR run in this
-        // one test only.
-        unsafe { std::env::set_var("GRABCLI_STATE_DIR", dir.path()) };
-        let mut c = Cart::default();
-        c.add("2-SR", "S&R", item("I1", 1))?;
-        c.save()?;
-        assert!(Cart::path()?.starts_with(dir.path().join("mart")));
-        assert_eq!(Cart::load()?, c);
-        Cart::clear()?;
-        assert!(Cart::load()?.is_empty());
         Ok(())
     }
 }

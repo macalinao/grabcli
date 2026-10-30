@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 /// An amount in minor units (1/100 of a peso).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Money(pub i64);
 
 impl Money {

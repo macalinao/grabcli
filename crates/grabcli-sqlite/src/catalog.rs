@@ -21,12 +21,16 @@
 use std::collections::HashMap;
 
 use rusqlite::{Connection, OptionalExtension, params};
-use serde::Serialize;
 use serde_json::Value;
 
-use super::{Cache, round_coord_to};
-use crate::error::Result;
-use crate::jwt;
+use grabcli_core::cache::round_coord_to;
+pub use grabcli_core::cache::types::{
+    CategoryRow, ItemHit, ItemQuery, ItemRow, Near, RestaurantHit, RestaurantQuery, RestaurantRow,
+    effective_price, haversine_km, query_terms,
+};
+
+use crate::SqliteCache;
+use crate::err::Result;
 
 /// Catalog tables (for stats/clear).
 pub(crate) const TABLES: [&str; 4] = [
@@ -42,115 +46,6 @@ const BUCKET_DECIMALS: usize = 3;
 /// A sighting within this distance of the query point counts as "seen from
 /// this address".
 const SIGHTING_RADIUS_KM: f64 = 1.0;
-
-/// A restaurant or store, as seen in one response.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
-pub struct RestaurantRow {
-    pub id: String,
-    /// Service namespace (`"food"`, `"mart"`).
-    pub namespace: String,
-    pub name: String,
-    pub chain_name: Option<String>,
-    pub branch_name: Option<String>,
-    /// Upstream `businessType` (`FOOD` / `MART`).
-    pub business_type: Option<String>,
-    pub cuisines: Vec<String>,
-    pub rating: Option<f64>,
-    pub vote_count: Option<i64>,
-    /// 1–3 (Grab's `priceTag`).
-    pub price_level: Option<i64>,
-    pub lat: Option<f64>,
-    pub lon: Option<f64>,
-    pub has_promo: Option<bool>,
-    pub promo_text: Option<String>,
-    pub open_now: Option<bool>,
-    pub opening_hours: Option<Value>,
-    pub photo_url: Option<String>,
-    // Location-dependent: also stored per sighting.
-    pub distance_km: Option<f64>,
-    pub delivery_eta_min: Option<i64>,
-    pub delivery_fee_minor: Option<i64>,
-    pub free_delivery: Option<bool>,
-    #[serde(skip)]
-    pub raw: Option<Value>,
-}
-
-/// A menu category / department.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
-pub struct CategoryRow {
-    pub restaurant_id: String,
-    pub id: String,
-    pub name: String,
-    pub sort: i64,
-    #[serde(skip)]
-    pub raw: Option<Value>,
-}
-
-/// A menu item (from a full menu, or a dish hit in search results).
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
-pub struct ItemRow {
-    pub id: String,
-    pub restaurant_id: String,
-    pub category_id: Option<String>,
-    pub name: String,
-    pub description: Option<String>,
-    pub price_minor: Option<i64>,
-    pub discounted_price_minor: Option<i64>,
-    pub available: Option<bool>,
-    pub image_url: Option<String>,
-    #[serde(skip)]
-    pub raw: Option<Value>,
-}
-
-/// A point and radius for "near" queries.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Near {
-    pub lat: f64,
-    pub lon: f64,
-    pub radius_km: f64,
-}
-
-/// A restaurant query. All fields are optional filters.
-#[derive(Debug, Clone, Default)]
-pub struct RestaurantQuery {
-    /// Free text matched against name and cuisines.
-    pub text: Option<String>,
-    pub near: Option<Near>,
-    pub namespace: Option<String>,
-    pub limit: Option<usize>,
-}
-
-/// An item query.
-#[derive(Debug, Clone, Default)]
-pub struct ItemQuery {
-    /// Free text matched against item name and description.
-    pub text: Option<String>,
-    pub near: Option<Near>,
-    /// Effective (discounted if any) price at most this, in minor units.
-    pub max_price_minor: Option<i64>,
-    pub available_only: bool,
-    pub restaurant_id: Option<String>,
-    pub limit: Option<usize>,
-}
-
-/// A restaurant from the catalog. Location-dependent fields come from the
-/// sighting nearest the query point when there is one.
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
-pub struct RestaurantHit {
-    #[serde(flatten)]
-    pub row: RestaurantRow,
-    /// When this row (or the sighting used) was last fetched.
-    pub fetched_at: i64,
-}
-
-/// An item from the catalog, with its restaurant.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ItemHit {
-    #[serde(flatten)]
-    pub item: ItemRow,
-    pub restaurant: Option<RestaurantHit>,
-    pub fetched_at: i64,
-}
 
 fn opt_json(v: Option<&Value>) -> Option<String> {
     v.map(Value::to_string)
@@ -173,30 +68,11 @@ pub(crate) fn bucket(lat: f64, lon: f64) -> String {
     )
 }
 
-/// Great-circle distance in km.
-pub fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
-    let r = 6371.0_f64;
-    let (p1, p2) = (lat1.to_radians(), lat2.to_radians());
-    let dp = (lat2 - lat1).to_radians();
-    let dl = (lon2 - lon1).to_radians();
-    let a = (dp / 2.0).sin().powi(2) + p1.cos() * p2.cos() * (dl / 2.0).sin().powi(2);
-    2.0 * r * a.sqrt().asin()
-}
-
 /// `(min_lat, max_lat, min_lon, max_lon)` around a point.
 fn bbox(lat: f64, lon: f64, km: f64) -> (f64, f64, f64, f64) {
     let dlat = km / 111.32;
     let dlon = km / (111.32 * lat.to_radians().cos().abs().max(0.01));
     (lat - dlat, lat + dlat, lon - dlon, lon + dlon)
-}
-
-/// Words of a free-text query (letters/digits only; FTS syntax is never
-/// passed through).
-fn query_terms(text: &str) -> Vec<String> {
-    text.split(|c: char| !c.is_alphanumeric())
-        .filter(|w| !w.is_empty())
-        .map(str::to_lowercase)
-        .collect()
 }
 
 /// Word-index query: every term as a prefix.
@@ -606,14 +482,6 @@ fn item_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<(ItemRow, i64)> {
     ))
 }
 
-fn effective_price(it: &ItemRow) -> Option<i64> {
-    match (it.discounted_price_minor, it.price_minor) {
-        (Some(d), Some(p)) if d > 0 => Some(d.min(p)),
-        (Some(d), None) => Some(d),
-        (_, p) => p,
-    }
-}
-
 pub(crate) fn search_items(conn: &Connection, q: &ItemQuery) -> Result<Vec<ItemHit>> {
     let text = q.text.as_deref().map(str::trim).filter(|t| !t.is_empty());
     let mut stmt_rid = conn.prepare_cached(&format!(
@@ -711,26 +579,17 @@ pub(crate) fn prune_older_than(conn: &Connection, cutoff: i64) -> Result<[u64; 4
     Ok(out)
 }
 
-impl Cache {
+impl SqliteCache {
     /// Upsert restaurants seen in a list response. `seen_from` is the
     /// delivery location of the request; when given, each row's distance /
-    /// ETA / fee are also recorded for that location. No-op when writes are
-    /// off.
-    pub fn index_restaurants(
-        &self,
-        rows: &[RestaurantRow],
-        seen_from: Option<(f64, f64)>,
-    ) -> Result<()> {
-        self.index_restaurants_at(rows, seen_from, jwt::now())
-    }
-
+    /// ETA / fee are also recorded for that location.
     pub fn index_restaurants_at(
         &self,
         rows: &[RestaurantRow],
         seen_from: Option<(f64, f64)>,
         now: i64,
     ) -> Result<()> {
-        if !self.mode.writes() || rows.is_empty() {
+        if rows.is_empty() {
             return Ok(());
         }
         let mut conn = self.conn()?;
@@ -746,13 +605,9 @@ impl Cache {
     }
 
     /// Upsert individual items (e.g. dish hits in search results), keeping
-    /// any category already known. No-op when writes are off.
-    pub fn index_items(&self, items: &[ItemRow]) -> Result<()> {
-        self.index_items_at(items, jwt::now())
-    }
-
+    /// any category already known.
     pub fn index_items_at(&self, items: &[ItemRow], now: i64) -> Result<()> {
-        if !self.mode.writes() || items.is_empty() {
+        if items.is_empty() {
             return Ok(());
         }
         let mut conn = self.conn()?;
@@ -765,18 +620,7 @@ impl Cache {
     }
 
     /// Store a full menu: the restaurant, its categories (replacing the old
-    /// ones) and items; items no longer on the menu are removed. No-op when
-    /// writes are off.
-    pub fn index_menu(
-        &self,
-        restaurant: &RestaurantRow,
-        categories: &[CategoryRow],
-        items: &[ItemRow],
-        seen_from: Option<(f64, f64)>,
-    ) -> Result<()> {
-        self.index_menu_at(restaurant, categories, items, seen_from, jwt::now())
-    }
-
+    /// ones) and items; items no longer on the menu are removed.
     pub fn index_menu_at(
         &self,
         restaurant: &RestaurantRow,
@@ -785,7 +629,7 @@ impl Cache {
         seen_from: Option<(f64, f64)>,
         now: i64,
     ) -> Result<()> {
-        if !self.mode.writes() || restaurant.id.is_empty() {
+        if restaurant.id.is_empty() {
             return Ok(());
         }
         let mut conn = self.conn()?;
@@ -824,8 +668,7 @@ impl Cache {
         Ok(())
     }
 
-    /// Query restaurants in the catalog (works in every mode: it only reads
-    /// what earlier fetches stored).
+    /// Query restaurants in the catalog.
     pub fn search_restaurants(&self, q: &RestaurantQuery) -> Result<Vec<RestaurantHit>> {
         search_restaurants(&*self.conn()?, q)
     }
@@ -844,11 +687,12 @@ impl Cache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cache::{CacheConfig, CacheMode};
+    use grabcli_core::Error;
+    use grabcli_core::cache::CacheConfig;
     use serde_json::json;
 
-    fn cache(dir: &std::path::Path) -> Cache {
-        Cache::new(dir, CacheConfig::default(), CacheMode::Normal)
+    fn cache(dir: &std::path::Path) -> SqliteCache {
+        SqliteCache::new(dir, CacheConfig::default())
     }
 
     fn rest(id: &str, name: &str, cuisines: &[&str]) -> RestaurantRow {
@@ -885,9 +729,7 @@ mod tests {
         c.index_restaurants_at(&[a], None, 100)?;
         // A sparser row (no cuisines/rating) doesn't erase them.
         c.index_restaurants_at(&[rest("A", "Cafe Kanto Branch", &[])], None, 200)?;
-        let hit = c
-            .restaurant("A")?
-            .ok_or_else(|| crate::Error::not_found("A"))?;
+        let hit = c.restaurant("A")?.ok_or_else(|| Error::not_found("A"))?;
         assert_eq!(hit.row.name, "Cafe Kanto Branch");
         assert_eq!(hit.row.cuisines, vec!["Filipino", "Sisig"]);
         assert_eq!(hit.row.rating, Some(4.5));
@@ -1096,14 +938,9 @@ mod tests {
     }
 
     #[test]
-    fn writes_off_and_prune() -> Result<()> {
+    fn prune_drops_old_catalog_rows() -> Result<()> {
         let dir = tempfile::tempdir()?;
         let c = cache(dir.path());
-        let off = c.with_mode(CacheMode::Off);
-        off.index_restaurants_at(&[rest("X", "X", &[])], Some((1.0, 1.0)), 100)?;
-        off.index_items_at(&[item("I", "X", "x", 1)], 100)?;
-        assert_eq!(c.stats_at(100)?.tables["restaurants"], 0);
-
         c.index_restaurants_at(&[rest("OLD", "Old", &[])], Some((1.0, 1.0)), 100)?;
         c.index_restaurants_at(&[rest("NEW", "New", &[])], Some((1.0, 1.0)), 10_000_000)?;
         c.index_items_at(&[item("I", "OLD", "x", 1)], 100)?;

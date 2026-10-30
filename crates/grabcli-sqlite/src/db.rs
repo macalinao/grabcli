@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use rusqlite::{Connection, OptionalExtension};
 
-use crate::error::{Error, Result};
+use grabcli_core::error::Error;
+
+use crate::err::{DbError, Result};
 
 /// The database file name inside the cache dir.
 pub const DB_FILE: &str = "cache.sqlite";
@@ -226,11 +228,11 @@ pub(crate) fn schema_version(conn: &Connection) -> Result<usize> {
 pub(crate) fn migrate(conn: &mut Connection, migrations: &[&str]) -> Result<(usize, usize)> {
     let from = schema_version(conn)?;
     if from > migrations.len() {
-        return Err(Error::invalid(format!(
+        return Err(DbError(Error::invalid(format!(
             "cache database schema v{from} is newer than this grabcli (v{}); \
              run `grab cache clear --all` or upgrade",
             migrations.len()
-        )));
+        ))));
     }
     for (i, sql) in migrations.iter().enumerate().skip(from) {
         let tx = conn.transaction()?;
@@ -297,8 +299,8 @@ fn open_once(path: &Path, now: i64) -> Result<Connection> {
     Ok(conn)
 }
 
-fn is_corrupt(e: &Error) -> bool {
-    let m = e.message.to_ascii_lowercase();
+fn is_corrupt(e: &DbError) -> bool {
+    let m = e.0.message.to_ascii_lowercase();
     m.contains("not a database") || m.contains("malformed")
 }
 
