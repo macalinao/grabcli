@@ -1,11 +1,13 @@
-//! The runtime context shared by every command.
+//! The runtime context shared by every call.
 //!
-//! Owns the loaded config, session and HTTP client, the output format, and the
-//! hydra refresh policy. Service code calls [`Context::call`] with a prepared
+//! Owns the config, the session (loaded from and saved through a
+//! [`SessionStore`]), the HTTP client and the hydra refresh policy. The
+//! library never reads files or the environment: the embedder passes the
+//! config, a session store and a cache to [`Context::new`]. Service code calls [`Context::call`] with a prepared
 //! request; the context attaches the hydra token, and on a hydra rejection it
 //! re-mints once (native or via CDP, per config) and retries.
 //!
-//! It also owns the response [`Cache`]; read-only browse calls go through
+//! It also owns the response cache ([`CacheHandle`] over a [`Cache`]); read-only browse calls go through
 //! [`Context::cached_call`]. Never route cart/quote/order/auth calls through
 //! the cache (see the safety notes in [`crate::cache`]).
 
@@ -13,14 +15,13 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::cache::{Cache, CacheKey, CacheMode, Fetched};
+use crate::cache::{Cache, CacheHandle, CacheKey, CacheMode, Fetched};
 use crate::config::{Config, DEFAULT_CDP, HydraMode};
 use crate::error::{Error, ErrorKind, Result};
 use crate::http::{Allowlist, Client, Hydra, Request};
 use crate::jwt;
-use crate::output::Output;
-use crate::paths;
 use crate::session::{LOCATION_COOKIE, Session};
+use crate::store::SessionStore;
 use crate::{cdp, hydra, sso};
 
 /// How hydra should be minted, resolved from config + available key.
@@ -32,15 +33,18 @@ enum ResolvedHydra {
 
 pub struct Context {
     pub config: Config,
-    pub out: Output,
     session: Session,
+    store: Arc<dyn SessionStore>,
     client: Arc<Client>,
-    /// The service allowlist, kept so the client can be rebuilt after a refresh.
+    /// The URL allowlist (services add theirs), kept so the client can be
+    /// rebuilt after a refresh.
     allow: Allowlist,
     /// Skew applied when deciding if the stored hydra token is still fresh.
     hydra_skew: i64,
+    /// The hydra signing key (PEM) for native minting, if the embedder has one.
+    hydra_key: Option<String>,
     /// Response cache for read-only browse data.
-    cache: Cache,
+    cache: CacheHandle,
     /// Whether a silent session refresh was already tried by this process
     /// (it's tried at most once, proactively or after a 401).
     refresh_tried: bool,
@@ -51,45 +55,91 @@ pub struct Context {
 const REFRESH_MARGIN_SECS: i64 = 15 * 60;
 
 impl Context {
-    /// Build a context for a command that makes Grab calls. `allow` is the
-    /// service's URL allowlist.
-    pub fn new(out: Output, allow: Allowlist) -> Result<Self> {
-        let config = Config::load(&paths::config_path()?)?;
-        let session = Session::load_default()?;
+    /// Build a context from a config, the session store and the cache
+    /// backend. Loads the session (`auth_missing` if the store has none).
+    /// The allowlist starts empty: add the service's with
+    /// [`with_allowlist`](Self::with_allowlist) (e.g.
+    /// `grabfood::api::allowlist(config.allow_ordering)`).
+    pub async fn new(
+        config: Config,
+        store: Arc<dyn SessionStore>,
+        cache: Arc<dyn Cache>,
+    ) -> Result<Self> {
+        let session = store.load().await?.ok_or_else(|| {
+            Error::new(
+                ErrorKind::AuthMissing,
+                "no Grab session: log in first (`grab auth login`, or `grab auth import`)",
+            )
+        })?;
+        let allow = Allowlist::new();
         let client = Arc::new(Client::new(&session, &config, allow.clone())?);
-        let cache = Cache::from_config(&config.cache, CacheMode::Normal);
+        let cache = CacheHandle::new(cache, config.cache.clone(), CacheMode::Normal);
         Ok(Self {
             cache,
             config,
-            out,
             session,
+            store,
             client,
             allow,
             hydra_skew: 30,
+            hydra_key: None,
             refresh_tried: false,
         })
     }
 
-    /// Refresh the short-lived `gfc_session` silently through the SSO cookie
-    /// ([`crate::sso`]), persist it and rebuild the HTTP client. Fails with
-    /// `auth_expired` ("run `grab auth login`") when the SSO is dead. Never
-    /// triggers an OTP or push.
-    pub async fn refresh_session(&mut self) -> Result<()> {
-        self.refresh_tried = true;
-        let ua = self
-            .config
-            .user_agent
-            .clone()
-            .or_else(|| self.session.user_agent.clone())
-            .unwrap_or_else(|| crate::http::DEFAULT_UA.to_string());
-        sso::silent_refresh(&mut self.session, &ua).await?;
-        self.session.save_default()?;
+    /// Add `allow` to the URL allowlist (and rebuild the client).
+    pub fn with_allowlist(mut self, allow: &Allowlist) -> Result<Self> {
+        self.allow.extend(allow);
+        self.rebuild_client()?;
+        Ok(self)
+    }
+
+    /// Use `pem` as the hydra signing key for native minting.
+    #[must_use]
+    pub fn with_hydra_key(mut self, pem: Option<String>) -> Self {
+        self.hydra_key = pem;
+        self
+    }
+
+    fn rebuild_client(&mut self) -> Result<()> {
         self.client = Arc::new(Client::new(
             &self.session,
             &self.config,
             self.allow.clone(),
         )?);
         Ok(())
+    }
+
+    /// Save the session through the store and rebuild the HTTP client.
+    async fn persist(&mut self) -> Result<()> {
+        self.store.save(&self.session).await?;
+        self.rebuild_client()
+    }
+
+    /// Replace the session (e.g. after a login) and save it through the store.
+    pub async fn set_session(&mut self, session: Session) -> Result<()> {
+        self.session = session;
+        self.refresh_tried = false;
+        self.persist().await
+    }
+
+    /// Refresh the short-lived `gfc_session` silently through the SSO cookie
+    /// ([`crate::sso`]), save it through the store and rebuild the HTTP
+    /// client. Fails with `auth_expired` when the SSO is dead. Never triggers
+    /// an OTP or push.
+    pub async fn refresh_session(&mut self) -> Result<()> {
+        self.refresh_tried = true;
+        let ua = self.user_agent();
+        sso::silent_refresh(&mut self.session, &ua).await?;
+        self.persist().await
+    }
+
+    fn user_agent(&self) -> String {
+        self.config
+            .user_agent
+            .clone()
+            .or_else(|| self.session.user_agent.clone())
+            .unwrap_or_else(|| crate::http::DEFAULT_UA.to_string())
     }
 
     /// Copy only the saved delivery address (`location` cookie) from the
@@ -104,29 +154,18 @@ impl Context {
         {
             return Ok(false);
         }
-        self.session.save_default()?;
-        self.client = Arc::new(Client::new(
-            &self.session,
-            &self.config,
-            self.allow.clone(),
-        )?);
+        self.persist().await?;
         Ok(true)
     }
 
     /// Replace the saved delivery address (`location` cookie) with `loc`
     /// (the cookie's JSON) and persist the session. Local only: the cookie
     /// is what the web app itself writes; nothing is sent to Grab.
-    pub fn set_location(&mut self, loc: &Value) -> Result<()> {
+    pub async fn set_location(&mut self, loc: &Value) -> Result<()> {
         let json = serde_json::to_string(loc).map_err(|e| Error::parse(e.to_string()))?;
         let value = urlencoding::encode(&json).into_owned();
         self.session.set_location_cookie(&value);
-        self.session.save_default()?;
-        self.client = Arc::new(Client::new(
-            &self.session,
-            &self.config,
-            self.allow.clone(),
-        )?);
-        Ok(())
+        self.persist().await
     }
 
     /// Best-effort follow-up after a login or refresh saved a session: fill
@@ -178,20 +217,9 @@ impl Context {
     /// food's `gfc_session`. Persists the session and rebuilds the client.
     /// Never triggers an OTP or push.
     pub async fn login_mart(&mut self) -> Result<()> {
-        let ua = self
-            .config
-            .user_agent
-            .clone()
-            .or_else(|| self.session.user_agent.clone())
-            .unwrap_or_else(|| crate::http::DEFAULT_UA.to_string());
+        let ua = self.user_agent();
         sso::silent_login(sso::Service::Mart, &mut self.session, &ua).await?;
-        self.session.save_default()?;
-        self.client = Arc::new(Client::new(
-            &self.session,
-            &self.config,
-            self.allow.clone(),
-        )?);
-        Ok(())
+        self.persist().await
     }
 
     /// Whether the session has a GrabMart web session cookie.
@@ -210,17 +238,23 @@ impl Context {
                 .is_some_and(|e| e - jwt::now() < REFRESH_MARGIN_SECS)
     }
 
-    /// Set the cache mode (from `--no-cache` / `--refresh`). `GRAB_NO_CACHE`
-    /// and `[cache] enabled = false` still force it off.
+    /// Set the cache mode (from `--no-cache` / `--refresh`, or
+    /// [`CacheMode::Off`] for the cart/quote/order path). `[cache] enabled =
+    /// false` still forces it off.
     #[must_use]
     pub fn with_cache_mode(mut self, mode: CacheMode) -> Self {
-        self.cache = Cache::from_config(&self.config.cache, mode);
+        self.cache = self.cache.with_mode(mode);
         self
     }
 
-    /// The response cache. Clone it to call [`Cache::get_or_fetch`] with a
-    /// closure that borrows this context.
-    pub fn cache(&self) -> &Cache {
+    /// Switch the cache mode in place.
+    pub fn set_cache_mode(&mut self, mode: CacheMode) {
+        self.cache = self.cache.with_mode(mode);
+    }
+
+    /// The response cache. Clone it to call [`CacheHandle::get_or_fetch`]
+    /// with a closure that borrows this context.
+    pub fn cache(&self) -> &CacheHandle {
         &self.cache
     }
 
@@ -270,16 +304,8 @@ impl Context {
         }
     }
 
-    fn hydra_key_path(&self) -> Option<std::path::PathBuf> {
-        if let Some(p) = &self.config.hydra_key {
-            return Some(p.clone());
-        }
-        let default = paths::config_dir().ok()?.join("hydra-key.pem");
-        default.exists().then_some(default)
-    }
-
     fn hydra_key_pem(&self) -> Option<String> {
-        std::fs::read_to_string(self.hydra_key_path()?).ok()
+        self.hydra_key.clone()
     }
 
     /// Ensure a usable hydra token exists, minting/refreshing if needed and
@@ -300,8 +326,8 @@ impl Context {
                 let pem = self.hydra_key_pem().ok_or_else(|| {
                     Error::new(
                         ErrorKind::HydraExpired,
-                        "native hydra minting needs a signing key at \
-                         <config>/hydra-key.pem (see docs/hydra.md); or set \
+                        "native hydra minting needs a signing key (the CLI reads \
+                         <config>/hydra-key.pem, see docs/hydra.md); or set \
                          hydra_mode = \"cdp\"",
                     )
                 })?;
@@ -309,7 +335,7 @@ impl Context {
                 let (tok, exp) = hydra::mint_native(&pem, &hydra::DeviceFields::random(), ver)?;
                 self.session.hydra_jwt = Some(tok.clone());
                 self.session.hydra_exp = Some(exp);
-                self.session.save_default()?;
+                self.store.save(&self.session).await?;
                 Ok(tok)
             }
             ResolvedHydra::Cdp => {
@@ -320,7 +346,7 @@ impl Context {
                     .clone()
                     .unwrap_or_else(|| "https://food.grab.com/ph/en/".to_string());
                 cdp::mint_hydra(&base, &page, &mut self.session).await?;
-                self.session.save_default()?;
+                self.store.save(&self.session).await?;
                 self.session.hydra_jwt.clone().ok_or_else(|| {
                     Error::new(ErrorKind::HydraExpired, "hydra mint produced no token")
                 })
@@ -398,7 +424,6 @@ impl Context {
             })
             .collect();
         serde_json::json!({
-            "session_path": paths::session_path().ok().map(|p| p.display().to_string()),
             "cookies": cookies,
             "gfc_session_present": self.session.cookie("gfc_session").is_some(),
             "gfc_session_logged_in": self.session.gfc_logged_in(),
@@ -414,5 +439,90 @@ impl Context {
             "address_detail": loc.as_ref().and_then(|l| l.address_detail.clone()),
             "note_to_driver": loc.as_ref().and_then(|l| l.note_to_driver.clone()),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cache::MemoryCache;
+    use crate::config::HydraMode;
+    use crate::store::MemorySessionStore;
+    use rsa::pkcs1::EncodeRsaPrivateKey;
+
+    fn store_with(session: Option<Session>) -> Arc<MemorySessionStore> {
+        Arc::new(MemorySessionStore::new(session))
+    }
+
+    async fn ctx(store: &Arc<MemorySessionStore>, config: Config) -> Result<Context> {
+        Context::new(config, store.clone(), Arc::new(MemoryCache::default())).await
+    }
+
+    #[tokio::test]
+    async fn new_needs_a_stored_session() {
+        let e = ctx(&store_with(None), Config::default()).await.err();
+        assert_eq!(e.map(|e| e.kind), Some(ErrorKind::AuthMissing));
+    }
+
+    #[tokio::test]
+    async fn location_change_is_saved_through_the_store() -> Result<()> {
+        let store = store_with(Some(Session::default()));
+        let mut c = ctx(&store, Config::default()).await?;
+        assert_eq!(store.save_count(), 0);
+        c.set_location(&serde_json::json!({"latitude": 1.0, "longitude": 2.0}))
+            .await?;
+        assert_eq!(store.save_count(), 1);
+        let saved = store.get().ok_or_else(|| Error::invalid("none"))?;
+        assert!(saved.cookie(LOCATION_COOKIE).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn hydra_mint_is_saved_through_the_store() -> Result<()> {
+        let mut rng = rsa::rand_core::OsRng;
+        let key = rsa::RsaPrivateKey::new(&mut rng, 2048).map_err(|e| Error::invalid(e.to_string()))?;
+        let pem = key
+            .to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)
+            .map_err(|e| Error::invalid(e.to_string()))?
+            .to_string();
+        let store = store_with(Some(Session::default()));
+        let config = Config {
+            hydra_mode: Some(HydraMode::Native),
+            ..Config::default()
+        };
+        let mut c = ctx(&store, config).await?.with_hydra_key(Some(pem));
+        let tok = c.ensure_hydra().await?;
+        assert_eq!(store.save_count(), 1);
+        let saved = store.get().ok_or_else(|| Error::invalid("none"))?;
+        assert_eq!(saved.hydra_jwt.as_deref(), Some(tok.as_str()));
+        // Still valid: no re-mint, no save.
+        c.ensure_hydra().await?;
+        assert_eq!(store.save_count(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn failed_refresh_saves_nothing() -> Result<()> {
+        // No SSO cookie: the refresh stops before any request.
+        let store = store_with(Some(Session::default()));
+        let mut c = ctx(&store, Config::default()).await?;
+        let e = c.refresh_session().await.err();
+        assert_eq!(e.map(|e| e.kind), Some(ErrorKind::AuthExpired));
+        assert_eq!(store.save_count(), 0);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_session_replaces_and_saves() -> Result<()> {
+        let store = store_with(Some(Session::default()));
+        let mut c = ctx(&store, Config::default()).await?;
+        let s = Session {
+            web_app_version: Some("build-2".into()),
+            ..Session::default()
+        };
+        c.set_session(s).await?;
+        assert_eq!(c.session().web_app_version.as_deref(), Some("build-2"));
+        assert_eq!(store.save_count(), 1);
+        Ok(())
     }
 }

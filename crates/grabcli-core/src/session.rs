@@ -4,18 +4,17 @@
 //! the short-lived hydra device JWT. grabcli never creates these credentials;
 //! it imports them from a browser the user is already logged into.
 //!
-//! Stored as JSON at [`crate::paths::session_path`] with mode 0600. The
-//! `Debug` impl redacts every value, and no command ever prints a cookie or
-//! token value — only names, expiries and derived status.
+//! A plain serde struct: where it is stored is up to the embedder's
+//! [`SessionStore`](crate::store::SessionStore) (the CLI keeps it as JSON,
+//! mode 0600). The `Debug` impl redacts every value, and nothing prints a
+//! cookie or token value — only names, expiries and derived status.
 
 use std::fmt;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::jwt;
-use crate::paths;
 
 /// Site preference cookies that are not credentials: the saved delivery
 /// address (`location`, URL-encoded JSON), the country and the UI language.
@@ -89,37 +88,6 @@ impl fmt::Debug for Session {
 }
 
 impl Session {
-    pub fn load(path: &Path) -> Result<Self> {
-        let bytes = match std::fs::read(path) {
-            Ok(b) => b,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                return Err(Error::new(
-                    ErrorKind::AuthMissing,
-                    format!(
-                        "no session at {}: run `grab auth import` (or `--from <session.json>`)",
-                        path.display()
-                    ),
-                ));
-            }
-            Err(e) => return Err(e.into()),
-        };
-        serde_json::from_slice(&bytes).map_err(|e| Error::parse(format!("{}: {e}", path.display())))
-    }
-
-    /// Load from the default/env path.
-    pub fn load_default() -> Result<Self> {
-        Self::load(&paths::session_path()?)
-    }
-
-    pub fn save(&self, path: &Path) -> Result<()> {
-        let data = serde_json::to_vec_pretty(self)?;
-        paths::write_private(path, &data)
-    }
-
-    pub fn save_default(&self) -> Result<()> {
-        self.save(&paths::session_path()?)
-    }
-
     /// Insert or replace a cookie, matched by name, path and domain (a
     /// leading dot is ignored for the match, so `.grab.com` and a legacy
     /// `grab.com` entry are the same cookie). Used to merge `Set-Cookie`s.
@@ -305,6 +273,18 @@ impl Session {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         }
+    }
+
+    /// When the long-lived GrabID SSO cookie (`grabid-openid-authn-ck`,
+    /// "Remember me", ~60 days) expires, Unix seconds. Silent refreshes work
+    /// until then; after it a new login is needed. `None` if there is no SSO
+    /// cookie or it is a session cookie.
+    pub fn sso_expires_at(&self) -> Option<i64> {
+        self.cookies
+            .iter()
+            .filter(|c| c.name == crate::sso::SSO_COOKIE && c.expires > 0.0)
+            .map(|c| c.expires as i64)
+            .max()
     }
 
     pub fn hydra_valid(&self, skew_secs: i64) -> bool {
@@ -596,27 +576,17 @@ mod tests {
     }
 
     #[test]
+    fn sso_expiry_from_cookie() {
+        let mut s = sample();
+        assert_eq!(s.sso_expires_at(), None);
+        s.cookies.push(ck("grabid-openid-authn-ck", ".grab.com", 1_900_000_000.0));
+        assert_eq!(s.sso_expires_at(), Some(1_900_000_000));
+    }
+
+    #[test]
     fn debug_redacts() {
         let s = sample();
         let d = format!("{s:?}");
         assert!(!d.contains("SESS-FAKE"));
-    }
-
-    #[test]
-    fn missing_session_is_auth_missing() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let e = Session::load(&dir.path().join("none.json")).expect_err("should error");
-        assert_eq!(e.kind, ErrorKind::AuthMissing);
-        Ok(())
-    }
-
-    #[test]
-    fn roundtrip_save_load() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let p = dir.path().join("session.json");
-        sample().save(&p)?;
-        let back = Session::load(&p)?;
-        assert_eq!(back.cookies.len(), 2);
-        Ok(())
     }
 }

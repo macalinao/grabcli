@@ -17,6 +17,7 @@ authors = ["Ian Macalinao <me@ianm.com>"]
 grabcli-core = { path = "crates/grabcli-core", version = "0.1.0" }
 grabfood = { path = "crates/grabfood", version = "0.1.0" }
 grabmart = { path = "crates/grabmart", version = "0.1.0" }
+grabcli-sqlite = { path = "crates/grabcli-sqlite", version = "0.1.0" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"

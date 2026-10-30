@@ -1,4 +1,6 @@
-//! `config.toml`: user settings. Every key is optional.
+//! `config.toml`: user settings. Every key is optional. The library only
+//! parses text ([`Config::parse`]) or takes a struct; reading the file (and
+//! the hydra key it points to) is the CLI's job.
 //!
 //! ```toml
 //! # Placing real orders stays impossible until the user sets this to true
@@ -35,7 +37,7 @@
 //! categories = 86400
 //! ```
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 
@@ -52,7 +54,9 @@ pub struct Config {
     pub cdp: Option<String>,
     pub auto_refresh: Option<bool>,
     pub hydra_mode: Option<HydraMode>,
-    /// Path to the hydra signing key (PEM). Default `<config dir>/hydra-key.pem`.
+    /// Path to the hydra signing key (PEM), read by the CLI (default
+    /// `<config dir>/hydra-key.pem`) and passed via
+    /// [`Context::with_hydra_key`](crate::Context::with_hydra_key).
     pub hydra_key: Option<PathBuf>,
     /// Page the CDP hydra minter opens. Must be a food.grab.com page that
     /// makes a hydra-protected API call.
@@ -89,15 +93,6 @@ impl std::str::FromStr for HydraMode {
 }
 
 impl Config {
-    pub fn load(path: &Path) -> Result<Self> {
-        match std::fs::read_to_string(path) {
-            Ok(s) => Self::parse(&s)
-                .map_err(|e| Error::new(e.kind, format!("{}: {}", path.display(), e.message))),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
     /// Parse and validate `config.toml` text.
     pub fn parse(s: &str) -> Result<Self> {
         let c: Self = toml::from_str(s).map_err(|e| Error::invalid(e.to_string()))?;
@@ -120,8 +115,7 @@ mod tests {
 
     #[test]
     fn defaults_keep_ordering_off() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let c = Config::load(&dir.path().join("missing.toml"))?;
+        let c = Config::parse("")?;
         assert!(!c.allow_ordering);
         assert!(c.auto_refresh());
         Ok(())
@@ -166,17 +160,6 @@ mod tests {
             let e = e.ok_or_else(|| Error::invalid(format!("accepted {bad:?}")))?;
             assert!(e.message.starts_with("`phone`: "), "{}", e.message);
         }
-        let dir = tempfile::tempdir()?;
-        let path = dir.path().join("config.toml");
-        std::fs::write(&path, "phone = \"0900 000 0012\"\n")?;
-        let e = Config::load(&path)
-            .err()
-            .ok_or_else(|| Error::invalid("loaded"))?;
-        assert!(
-            e.message
-                .contains("config.toml: `phone`: phone must be in international form")
-        );
-        assert!(!e.message.contains("0012"));
         Ok(())
     }
 

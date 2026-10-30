@@ -61,6 +61,12 @@ impl Allowlist {
         self
     }
 
+    /// Add every rule of `other`.
+    pub fn extend(&mut self, other: &Allowlist) -> &mut Self {
+        self.rules.extend(other.rules.iter().cloned());
+        self
+    }
+
     pub fn is_allowed(&self, url: &str) -> bool {
         let no_query = url.split('?').next().unwrap_or(url);
         self.rules.iter().any(|r| r.matches(no_query))

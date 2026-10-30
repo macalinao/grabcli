@@ -526,10 +526,8 @@ dependencies = [
  "base64 0.22.1",
  "futures-util",
  "getrandom 0.3.4",
- "image",
  "reqwest",
  "rsa",
- "rusqlite",
  "serde",
  "serde_json",
  "sha2",
@@ -539,6 +537,21 @@ dependencies = [
  "tokio-tungstenite",
  "toml",
  "urlencoding",
+]
+
+[[package]]
+name = "grabcli-sqlite"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "grabcli-core",
+ "image",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
