@@ -1,0 +1,81 @@
+{
+ "shortcuts": [
+  {
+   "name": "Deal Drop Zone 🔥",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Claim 40% OFF!",
+   "id": "25865",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp",
+   "action": {
+    "value": "grab://open?screenType=GRABFOOD&campaignLandingV2ID=30bfcf62-84d1-4250-8fe2-6ef512b0354f",
+    "actionType": "DEEPLINK"
+   }
+  },
+  {
+   "name": "Starts at ₱99  🤩",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Up to 50% OFF!",
+   "id": "25323",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp",
+   "action": {
+    "value": "grab://open?screenType=GRABFOOD&campaignLandingV2ID=98a65764-e552-4d4f-81d6-ef7269097d2c",
+    "actionType": "DEEPLINK"
+   }
+  },
+  {
+   "name": "Grab 5-Star Eats ⭐",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Top-rated picks",
+   "id": "23865",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp",
+   "action": {
+    "value": "grab://open?screenType=GRABFOOD&campaignLandingID=19140&landingSource=foodAuthority&isNewTask=true",
+    "actionType": "DEEPLINK"
+   }
+  },
+  {
+   "name": "Only On Grab 🤩",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Exclusive eats! 💚",
+   "id": "19182",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp"
+  },
+  {
+   "name": "More on GrabFood",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Everyday offers",
+   "id": "26166",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp",
+   "action": {
+    "value": "grab://open?screenType=GRABFOOD&campaignLandingV2ID=7dec6217-dc0a-4468-9df1-34ba203bdd8e",
+    "actionType": "DEEPLINK"
+   }
+  },
+  {
+   "name": "GrabUnlimited Exclusive",
+   "imageURL": "https://example.com/photo.webp",
+   "description": "Deals & Perks",
+   "id": "22926",
+   "imageV2": "https://example.com/photo.webp",
+   "imageURLFallback": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.webp"
+  },
+  {
+   "name": "Nearby",
+   "description": "Nearby tile, SG USE ONLY",
+   "id": "5047",
+   "imageV2": "https://example.com/photo.webp",
+   "imageV2Fallback": "https://example.com/photo.jpg"
+  }
+ ]
+}

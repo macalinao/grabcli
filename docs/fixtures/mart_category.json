@@ -1,0 +1,294 @@
+{
+ "categoryName": "Grocery Stores",
+ "categoryImageURL": "https://example.com/photo.webp",
+ "categoryDescription": "tag:SHOPPING_MISSION\nextraTag:10_10",
+ "searchResult": {
+  "totalCount": 19,
+  "searchMerchants": [
+   {
+    "id": "2-C6KJE2WBBFDZL6",
+    "address": {
+     "name": "Ever Supermarket - Example Branch",
+     "combined_address": "1 Example St, Example City",
+     "combined_city": "Example City",
+     "city": "Example City",
+     "cityId": 4,
+     "country": "Philippines",
+     "countryID": 2
+    },
+    "latlng": {
+     "latitude": 1.2911,
+     "longitude": 103.8502
+    },
+    "estimatedDeliveryTime": 50,
+    "merchantBrief": {
+     "description": "Sold by: Ever Plus Superstore, Inc. Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Grocery Supermarket"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "hasPromotion": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "07:00-22:00",
+      "sun": "07:00-22:00",
+      "mon": "07:00-22:00",
+      "tue": "07:00-22:00",
+      "wed": "07:00-22:00",
+      "thu": "07:00-22:00",
+      "fri": "07:00-22:00",
+      "sat": "07:00-22:00"
+     },
+     "distanceInKm": 5.5,
+     "rating": 4.7,
+     "vote_count": 1894,
+     "promo": {
+      "hasPromo": true
+     },
+     "closingSoonText": "Closing soon - order before 10 PM",
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Ever Supermarket - Example Branch"
+     },
+     "deliverOptions": "ONLY_DELIVERY",
+     "timeZone": "Asia/Manila"
+    },
+    "chainID": "EverSupermarket",
+    "chainName": "Ever Supermarket",
+    "branchMerchants": [
+     {
+      "id": "2-C6KJE2WBBFDZL6",
+      "address": {
+       "name": "Ever Supermarket - Example Branch"
+      },
+      "_trimmed": "branch entries have the same shape as the parent merchant"
+     }
+    ],
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 6900,
+     "priceDisplay": "₱69.00",
+     "multiplier": 1,
+     "priceWithoutSSC": 6900
+    },
+    "metadata": {
+     "origin": [
+      "CATEGORIES"
+     ],
+     "discovery": {
+      "requestID": "<redacted>",
+      "service": "search",
+      "discoverID": "abbc897180964e6e9952c88e74d76ca6",
+      "customDimensions": "business_type=1,is_keyword=false",
+      "unavailableMexReason": "CODE_OK",
+      "personalizedMerchantID": "2-C6KJE2WBBFDZL6"
+     }
+    },
+    "merchantStatusInfo": {
+     "status": "OPENED_CLOSING_SOON",
+     "guideText": "<font color='#AC1E11'>Closing soon</font> - order before 10:00 PM"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>100% off Delivery</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "100% off Delivery",
+       "attributionData": {
+        "decisionID": "<redacted>",
+        "discoveryID": "00000000-0000-0000-0000-000000000000",
+        "campaignID": "2:50366065"
+       },
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱40.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱40.00 off",
+       "attributionData": {
+        "decisionID": "<redacted>",
+        "discoveryID": "00000000-0000-0000-0000-000000000000",
+        "campaignID": "2:50480597"
+       },
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png"
+      }
+     ],
+     "metadata": {
+      "sources": [
+       {
+        "type": "omega",
+        "ID": "2:50366065"
+       },
+       {
+        "type": "omega",
+        "ID": "2:50480597",
+        "displayIndex": 1
+       }
+      ]
+     }
+    },
+    "businessType": "MART",
+    "options": {
+     "enableSuperMarket": true,
+     "enableSuperMarketFastFollowUp": true
+    },
+    "mexFlags": 75200,
+    "highlights": [
+     {
+      "type": "promoTag",
+      "title": "100% off Delivery",
+      "subtitle": "Min. spend ₱500.00",
+      "icon": "https://example.com/photo.jpg",
+      "custom": {
+       "promoTag": {
+        "id": "50366065",
+        "source": "omegaPromoTag"
+       }
+      },
+      "backgroundColor": "#FFFFFF",
+      "borderColor": "#DBDBDB",
+      "attributionData": {
+       "decisionID": "<redacted>",
+       "discoveryID": "00000000-0000-0000-0000-000000000000",
+       "campaignID": "2:50366065"
+      }
+     },
+     {
+      "type": "promoTag",
+      "title": "₱40.00 off",
+      "subtitle": "Min. spend ₱500.00",
+      "icon": "https://example.com/photo.jpg",
+      "custom": {
+       "promoTag": {
+        "id": "50480597",
+        "source": "omegaPromoTag"
+       }
+      },
+      "backgroundColor": "#FFFFFF",
+      "borderColor": "#DBDBDB",
+      "attributionData": {
+       "decisionID": "<redacted>",
+       "discoveryID": "00000000-0000-0000-0000-000000000000",
+       "campaignID": "2:50480597"
+      }
+     }
+    ],
+    "deliveryIcon": {
+     "name": "DeliveryTwoWheelerOutlined",
+     "color": "#A3A3A3"
+    }
+   },
+   {
+    "id": "2-C3XDVXDBFEC2JN",
+    "address": {
+     "name": "Builtamart - Example Branch",
+     "combined_address": "1 Example St, Example City",
+     "combined_city": "Example City",
+     "city": "Example City",
+     "cityId": 4,
+     "country": "Philippines",
+     "countryID": 2
+    },
+    "latlng": {
+     "latitude": 1.3104,
+     "longitude": 103.8377
+    },
+    "estimatedDeliveryTime": 50,
+    "merchantBrief": {
+     "description": "Sold by: CTT.Synergy Corporation. Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Grocery Supermarket"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "iconHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "08:00-22:00",
+      "sun": "08:00-22:00",
+      "mon": "08:00-22:00",
+      "tue": "08:00-22:00",
+      "wed": "08:00-22:00",
+      "thu": "08:00-22:00",
+      "fri": "08:00-22:00",
+      "sat": "08:00-22:00"
+     },
+     "distanceInKm": 6.2,
+     "rating": 4.9,
+     "vote_count": 7116,
+     "promo": {},
+     "closingSoonText": "Closing soon - order before 10 PM",
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Builtamart - Example Branch"
+     },
+     "deliverOptions": "DELIVERY_TAKEAWAY",
+     "timeZone": "Asia/Manila"
+    },
+    "chainID": "Builtamart",
+    "chainName": "Builtamart",
+    "branchMerchants": [
+     {
+      "id": "2-C3XDVXDBFEC2JN",
+      "address": {
+       "name": "Builtamart - Example Branch"
+      },
+      "_trimmed": "branch entries have the same shape as the parent merchant"
+     }
+    ],
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 6900,
+     "priceDisplay": "₱69.00",
+     "multiplier": 1,
+     "priceWithoutSSC": 6900
+    },
+    "metadata": {
+     "origin": [
+      "CATEGORIES"
+     ],
+     "discovery": {
+      "requestID": "<redacted>",
+      "service": "search",
+      "discoverID": "abbc897180964e6e9952c88e74d76ca6",
+      "customDimensions": "business_type=1,is_keyword=false",
+      "unavailableMexReason": "CODE_OK",
+      "personalizedMerchantID": "2-C3XDVXDBFEC2JN"
+     }
+    },
+    "merchantStatusInfo": {
+     "status": "OPENED_CLOSING_SOON",
+     "guideText": "<font color='#AC1E11'>Closing soon</font> - order before 10:00 PM"
+    },
+    "businessType": "MART",
+    "options": {
+     "enableSuperMarket": true,
+     "enableSuperMarketFastFollowUp": true
+    },
+    "mexFlags": 67008,
+    "deliveryIcon": {
+     "name": "DeliveryTwoWheelerOutlined",
+     "color": "#A3A3A3"
+    }
+   }
+  ],
+  "offset": 19,
+  "numItems": 19
+ },
+ "sortAndFiltersV2": {
+  "possibility": true
+ }
+}

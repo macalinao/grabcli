@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: nix-community
+          skipPush: true
+
+      # Formatting, git hooks and the package build (which runs the tests).
+      - name: nix flake check
+        run: nix flake check --print-build-logs
+
+      - name: nix build
+        run: nix build .#grab --print-build-logs
+
+      - name: cargo clippy
+        run: nix develop --command cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: nix develop --command cargo test --workspace

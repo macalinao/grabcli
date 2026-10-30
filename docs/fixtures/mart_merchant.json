@@ -1,0 +1,730 @@
+{
+ "merchant": {
+  "ID": "2-C221R641CXWGEE",
+  "name": "Watsons - Example Branch",
+  "cuisine": "Pharmacy",
+  "photoHref": "https://example.com/photo.webp",
+  "ETA": 20,
+  "description": "Sold by: Watsons Personal Care Stores Philippines, Incorporated. Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+  "openingHours": {
+   "open": true,
+   "displayedHours": "00:00-23:59"
+  },
+  "distanceInKm": 1.4,
+  "latlng": {
+   "latitude": 1.2834,
+   "longitude": 103.8266
+  },
+  "address": {
+   "name": "Watsons - Example Branch",
+   "combined_address": "1 Example St, Example City",
+   "combined_city": "Example City",
+   "city": "Example City"
+  },
+  "menu": {
+   "menuMeta": {
+    "orderValueLimit": 8000000
+   },
+   "campaigns": [
+    {
+     "ID": "2-C221R641CXWGEE-C8JGL32BKAMTC2-12401056",
+     "campaignLevel": "item",
+     "startTime": {
+      "seconds": -62135596800
+     },
+     "endTime": {
+      "seconds": -62135596800
+     },
+     "label": "item_campaign_summary",
+     "name": "Enjoy discounts on items",
+     "priority": "low",
+     "status": "ongoing",
+     "tcDetails": [
+      "₱109.00 off selected items"
+     ],
+     "decisionID": "<redacted>",
+     "attributionData": {
+      "decisionID": "<redacted>",
+      "discoveryID": "00000000-0000-0000-0000-000000000000",
+      "campaignID": "2-C221R641CXWGEE-C8JGL32BKAMTC2-12401056"
+     }
+    }
+   ],
+   "departments": [
+    {
+     "ID": "mockTodayOfferDepartID",
+     "name": "Discounted items",
+     "available": true,
+     "items": [
+      {
+       "ID": "PHITE20260331165647313654",
+       "name": "Raspberry Splash Fragrance Body Lotion 400ml",
+       "available": true,
+       "priceInMinorUnit": 19900,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "GLAMWORKS RSPBRRYSPL",
+       "sortOrder": 2886,
+       "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+       "campaignName": "₱99.50 off",
+       "priceV2": {
+        "amountInMinor": 19900,
+        "amountDisplay": "199.00"
+       },
+       "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":9950,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719\"},\"external_data\":\"50042310\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":9950,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+       "recommendationSource": 8,
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225061524018709",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "datascience",
+         "method": "GetPopularItemsV2",
+         "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+        },
+        "itemID": "PHITE20260331165647313654"
+       },
+       "takeawayPriceInMin": 19900,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061446018566"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp"
+       ],
+       "itemFlags": 4,
+       "campaigns": [
+        {
+         "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+         "campaignTags": [
+          {
+           "tag": "₱99.50 off"
+          }
+         ],
+         "decisionID": "<redacted>",
+         "attributionData": {
+          "decisionID": "<redacted>",
+          "discoveryID": "00000000-0000-0000-0000-000000000000",
+          "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+         },
+         "discountToken": "7:2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+        }
+       ],
+       "itemTags": [
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        },
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        }
+       ],
+       "barcode": "50042310"
+      },
+      {
+       "ID": "PHITE20260407162033029871",
+       "name": "Vanilla Crush Fragrance Body Lotion 400ml",
+       "available": true,
+       "priceInMinorUnit": 19900,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "GLAMWORKS VNILLACRSH",
+       "sortOrder": 2369,
+       "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887",
+       "campaignName": "₱99.50 off",
+       "priceV2": {
+        "amountInMinor": 19900,
+        "amountDisplay": "199.00"
+       },
+       "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":9950,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887\"},\"external_data\":\"50042313\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":9950,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+       "recommendationSource": 8,
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225061524018709",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "datascience",
+         "method": "GetPopularItemsV2",
+         "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+        },
+        "itemID": "PHITE20260407162033029871"
+       },
+       "takeawayPriceInMin": 19900,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061446018566"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp"
+       ],
+       "campaigns": [
+        {
+         "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887",
+         "campaignTags": [
+          {
+           "tag": "₱99.50 off"
+          }
+         ],
+         "decisionID": "<redacted>",
+         "attributionData": {
+          "decisionID": "<redacted>",
+          "discoveryID": "00000000-0000-0000-0000-000000000000",
+          "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887"
+         },
+         "discountToken": "7:2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887"
+        }
+       ],
+       "itemTags": [
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        },
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        }
+       ],
+       "barcode": "50042313",
+       "collectionIDs": [
+        31593
+       ]
+      }
+     ],
+     "sortOrder": 21,
+     "departmentType": 1,
+     "hasMore": true,
+     "title": "See all items in Discounted items",
+     "image": "https://assets-mobile.grab.com/deliveries/food/mart/mart_categories_addition_today_offer.png",
+     "elementCards": [
+      {
+       "type": 1,
+       "item": {
+        "ID": "PHITE20260331165647313654",
+        "name": "Raspberry Splash Fragrance Body Lotion 400ml",
+        "available": true,
+        "priceInMinorUnit": 19900,
+        "imgHref": "https://example.com/photo.webp",
+        "description": "GLAMWORKS RSPBRRYSPL",
+        "sortOrder": 2886,
+        "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+        "campaignName": "₱99.50 off",
+        "discountedPriceInMin": 9950,
+        "priceV2": {
+         "amountInMinor": 19900,
+         "amountDisplay": "199.00"
+        },
+        "discountedPriceV2": {
+         "amountInMinor": 9950,
+         "amountDisplay": "99.50"
+        },
+        "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":9950,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719\"},\"external_data\":\"50042310\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":9950,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+        "discountPercentage": "-50%",
+        "recommendationSource": 8,
+        "itemAttributes": {
+         "displayedTexts": {}
+        },
+        "itemClassID": "PHITEDP20260225061524018709",
+        "discoveryMetadata": {
+         "discovery": {
+          "requestID": "<redacted>",
+          "service": "datascience",
+          "method": "GetPopularItemsV2",
+          "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+         },
+         "itemID": "PHITE20260331165647313654"
+        },
+        "takeawayPriceInMin": 19900,
+        "discountedTakeawayPriceInMin": 19900,
+        "merchantID": "2-C221R641CXWGEE",
+        "searchMeta": {
+         "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061446018566"
+        },
+        "thumbImages": [
+         "https://example.com/photo.webp"
+        ],
+        "images": [
+         "https://example.com/photo.webp"
+        ],
+        "itemFlags": 4,
+        "campaigns": [
+         {
+          "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+          "campaignTags": [
+           {
+            "tag": "₱99.50 off"
+           }
+          ],
+          "decisionID": "<redacted>",
+          "attributionData": {
+           "decisionID": "<redacted>",
+           "discoveryID": "00000000-0000-0000-0000-000000000000",
+           "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+          },
+          "discountToken": "7:2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+         }
+        ],
+        "itemTags": [
+         {
+          "content": "₱99.50 off",
+          "itemTagType": 5,
+          "style": "image",
+          "showType": "image"
+         },
+         {
+          "content": "₱99.50 off",
+          "itemTagType": 5,
+          "style": "image",
+          "showType": "image"
+         }
+        ],
+        "barcode": "50042310"
+       }
+      },
+      {
+       "type": 1,
+       "item": {
+        "ID": "PHITE20260407162033029871",
+        "name": "Vanilla Crush Fragrance Body Lotion 400ml",
+        "available": true,
+        "priceInMinorUnit": 19900,
+        "imgHref": "https://example.com/photo.webp",
+        "description": "GLAMWORKS VNILLACRSH",
+        "sortOrder": 2369,
+        "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887",
+        "campaignName": "₱99.50 off",
+        "discountedPriceInMin": 9950,
+        "priceV2": {
+         "amountInMinor": 19900,
+         "amountDisplay": "199.00"
+        },
+        "discountedPriceV2": {
+         "amountInMinor": 9950,
+         "amountDisplay": "99.50"
+        },
+        "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":9950,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887\"},\"external_data\":\"50042313\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":9950,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+        "discountPercentage": "-50%",
+        "recommendationSource": 8,
+        "itemAttributes": {
+         "displayedTexts": {}
+        },
+        "itemClassID": "PHITEDP20260225061524018709",
+        "discoveryMetadata": {
+         "discovery": {
+          "requestID": "<redacted>",
+          "service": "datascience",
+          "method": "GetPopularItemsV2",
+          "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+         },
+         "itemID": "PHITE20260407162033029871"
+        },
+        "takeawayPriceInMin": 19900,
+        "discountedTakeawayPriceInMin": 19900,
+        "merchantID": "2-C221R641CXWGEE",
+        "searchMeta": {
+         "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061446018566"
+        },
+        "thumbImages": [
+         "https://example.com/photo.webp"
+        ],
+        "images": [
+         "https://example.com/photo.webp"
+        ],
+        "campaigns": [
+         {
+          "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887",
+          "campaignTags": [
+           {
+            "tag": "₱99.50 off"
+           }
+          ],
+          "decisionID": "<redacted>",
+          "attributionData": {
+           "decisionID": "<redacted>",
+           "discoveryID": "00000000-0000-0000-0000-000000000000",
+           "campaignID": "2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887"
+          },
+          "discountToken": "7:2-C221R641CXWGEE-C8JGL32BN4DVRJ-17501887"
+         }
+        ],
+        "itemTags": [
+         {
+          "content": "₱99.50 off",
+          "itemTagType": 5,
+          "style": "image",
+          "showType": "image"
+         },
+         {
+          "content": "₱99.50 off",
+          "itemTagType": 5,
+          "style": "image",
+          "showType": "image"
+         }
+        ],
+        "barcode": "50042313",
+        "collectionIDs": [
+         31593
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "ID": "dynamicCategoryID",
+     "name": "For You",
+     "available": true,
+     "items": [
+      {
+       "ID": "PHITE20260331172304327669",
+       "name": "Watsons Charcoal Nose Pore Strip 10 Sheets",
+       "available": true,
+       "priceInMinorUnit": 14500,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "Watsons Charcoal Nose Pore Strip 10 Sheets",
+       "sortOrder": 113,
+       "campaignID": "2-C221R641CXWGEE-C8JGL32CBFNGME-71973891",
+       "campaignName": "₱58.00 off",
+       "priceV2": {
+        "amountInMinor": 14500,
+        "amountDisplay": "145.00"
+       },
+       "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":5800,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32CBFNGME-71973891\"},\"external_data\":\"10093237\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":5800,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+       "recommendationSource": 8,
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225061344013646",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "datascience",
+         "method": "GetPopularItemsV2",
+         "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+        },
+        "itemID": "PHITE20260331172304327669"
+       },
+       "takeawayPriceInMin": 14500,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061109014478"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp",
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp",
+        "https://example.com/photo.webp"
+       ],
+       "campaigns": [
+        {
+         "campaignID": "2-C221R641CXWGEE-C8JGL32CBFNGME-71973891",
+         "campaignTags": [
+          {
+           "tag": "₱58.00 off"
+          }
+         ],
+         "decisionID": "<redacted>",
+         "attributionData": {
+          "decisionID": "<redacted>",
+          "discoveryID": "00000000-0000-0000-0000-000000000000",
+          "campaignID": "2-C221R641CXWGEE-C8JGL32CBFNGME-71973891"
+         },
+         "discountToken": "7:2-C221R641CXWGEE-C8JGL32CBFNGME-71973891"
+        }
+       ],
+       "itemTags": [
+        {
+         "content": "₱58.00 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        },
+        {
+         "content": "₱58.00 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        }
+       ],
+       "barcode": "10093237"
+      },
+      {
+       "ID": "PHITE20260331165647313654",
+       "name": "Raspberry Splash Fragrance Body Lotion 400ml",
+       "available": true,
+       "priceInMinorUnit": 19900,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "GLAMWORKS RSPBRRYSPL",
+       "sortOrder": 2886,
+       "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+       "campaignName": "₱99.50 off",
+       "priceV2": {
+        "amountInMinor": 19900,
+        "amountDisplay": "199.00"
+       },
+       "metadata": "{\"discount_meta\":{\"type\":\"net\",\"discount_value_in_min\":9950,\"currency_code\":\"PHP\",\"campaignID\":\"2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719\"},\"external_data\":\"50042310\",\"discounts\":{\"currency_code\":\"PHP\",\"discount_metas\":[{\"type\":\"net\",\"discount_value_in_min\":9950,\"campaign_id\":\"2-C221R641CXWGEE-C8JGL3...",
+       "recommendationSource": 8,
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225061524018709",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "datascience",
+         "method": "GetPopularItemsV2",
+         "discoverID": "e0c3c1d977d048f3ab0ada9acda3170e"
+        },
+        "itemID": "PHITE20260331165647313654"
+       },
+       "takeawayPriceInMin": 19900,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225061446018566"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp"
+       ],
+       "itemFlags": 4,
+       "campaigns": [
+        {
+         "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719",
+         "campaignTags": [
+          {
+           "tag": "₱99.50 off"
+          }
+         ],
+         "decisionID": "<redacted>",
+         "attributionData": {
+          "decisionID": "<redacted>",
+          "discoveryID": "00000000-0000-0000-0000-000000000000",
+          "campaignID": "2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+         },
+         "discountToken": "7:2-C221R641CXWGEE-C8JGL32BMAAVJE-99655719"
+        }
+       ],
+       "itemTags": [
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        },
+        {
+         "content": "₱99.50 off",
+         "itemTagType": 5,
+         "style": "image",
+         "showType": "image"
+        }
+       ],
+       "barcode": "50042310"
+      }
+     ],
+     "sortOrder": 21,
+     "departmentType": 2,
+     "title": "See all items in For You",
+     "image": "https://assets-mobile.grab.com/deliveries/food/mart/mart_categories_addition_for_you.png"
+    },
+    {
+     "ID": "2-C221R641CXWGEE-PHITEDP20260225062437014128",
+     "name": "Beauty Tools & Accessories",
+     "available": true,
+     "items": [
+      {
+       "ID": "PHITE20260331170130012921",
+       "name": "WATSONS Large Groom and Detangle Comb",
+       "available": true,
+       "priceInMinorUnit": 10900,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "WATSONS Large Groom and Detangle Comb",
+       "sortOrder": 2909,
+       "priceV2": {
+        "amountInMinor": 10900,
+        "amountDisplay": "109.00"
+       },
+       "metadata": "{\"external_data\":\"10089487\",\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225062515016776",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "food-dataservice",
+         "method": "GetMerchantActiveItems",
+         "discoverID": "null"
+        },
+        "itemID": "PHITE20260331170130012921"
+       },
+       "takeawayPriceInMin": 10900,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225062437014128"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp",
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp",
+        "https://example.com/photo.webp"
+       ],
+       "barcode": "10089487"
+      },
+      {
+       "ID": "PHITE20260331170205712315",
+       "name": "WATSONS SMALL GROOM N DETANGLE COMB",
+       "available": true,
+       "priceInMinorUnit": 8400,
+       "imgHref": "https://example.com/photo.webp",
+       "description": "WATSONS SMALL GROOM N DETANGLE COMB",
+       "sortOrder": 7,
+       "priceV2": {
+        "amountInMinor": 8400,
+        "amountDisplay": "84.00"
+       },
+       "metadata": "{\"external_data\":\"10102222\",\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+       "itemAttributes": {
+        "displayedTexts": {}
+       },
+       "itemClassID": "PHITEDP20260225062813015400",
+       "discoveryMetadata": {
+        "discovery": {
+         "requestID": "<redacted>",
+         "service": "food-dataservice",
+         "method": "GetMerchantActiveItems",
+         "discoverID": "null"
+        },
+        "itemID": "PHITE20260331170205712315"
+       },
+       "takeawayPriceInMin": 8400,
+       "merchantID": "2-C221R641CXWGEE",
+       "searchMeta": {
+        "departmentID": "2-C221R641CXWGEE-PHITEDP20260225062437014128"
+       },
+       "thumbImages": [
+        "https://example.com/photo.webp"
+       ],
+       "images": [
+        "https://example.com/photo.webp"
+       ],
+       "barcode": "10102222"
+      }
+     ],
+     "sortOrder": 5,
+     "supportSearch": true,
+     "hasMore": true,
+     "title": "See all items in Beauty Tools & Accessories"
+    }
+   ],
+   "menuItemType": 1,
+   "stackableOfferOption": 2
+  },
+  "currency": {
+   "code": "PHP",
+   "symbol": "₱"
+  },
+  "rating": 4.7,
+  "voteCount": 999,
+  "deliverBy": "GRAB",
+  "estimatedDeliveryFee": {
+   "currency": {
+    "code": "PHP",
+    "symbol": "₱"
+   },
+   "price": 6900,
+   "priceDisplay": "₱69.00"
+  },
+  "schedulerOrderConfig": {
+   "enableScheduleOrder": true,
+   "scheduleTimeSlots": [
+    {
+     "timeSlots": [
+      {
+       "from": {
+        "seconds": 1792256400
+       },
+       "to": {
+        "seconds": 1792335600
+       },
+       "available": true
+      }
+     ]
+    }
+   ],
+   "scheduleTimeSpan": 60,
+   "scheduleIntervalTime": 60,
+   "enableSameDayDelivery": true,
+   "sameDayNudgeDisplay": true,
+   "minAdvancePeriodInMin": 90
+  },
+  "deliveryOptions": [
+   "DELIVERY",
+   "TAKEAWAY"
+  ],
+  "sectionOpenHours": {
+   "open": true,
+   "displayedHours": "12:00 AM - 11:59 PM",
+   "sun": "00:00-23:59",
+   "mon": "00:00-23:59",
+   "tue": "00:00-23:59",
+   "wed": "00:00-23:59",
+   "thu": "00:00-23:59",
+   "fri": "00:00-23:59",
+   "sat": "00:00-23:59"
+  },
+  "status": "ACTIVE",
+  "sofConfiguration": {},
+  "outOfStockInstructions": [
+   {
+    "title": "Store to suggest replacement if sold out",
+    "subTitle": "The store will try their best to find something similar.",
+    "instructionType": "CONTACT",
+    "longTitle": "Suggest a replacement"
+   },
+   {
+    "title": "Replace if sold out",
+    "subTitle": "The store will decide based on the options you select.",
+    "instructionType": "SPECIFIC_ITEM",
+    "longTitle": "Replace with a similar item",
+    "conditionalSubtitle": "Search the store for a replacement"
+   },
+   {
+    "title": "Remove if sold out",
+    "subTitle": "Order total and applied offers may change.",
+    "instructionType": "REMOVE",
+    "longTitle": "Remove it from my order"
+   }
+  ],
+  "smallPhotoHref": "https://example.com/photo.webp",
+  "merchantShareLink": {
+   "shareText": "Check out Watsons - Example Branch on Grab!",
+   "shareLink": "https://app.grab.com/s/1Rtcu6Xv"
+  }
+ },
+ "shoppingCart": {},
+ "sortAndFiltersV2": {
+  "options": {},
+  "possibility": true
+ }
+}

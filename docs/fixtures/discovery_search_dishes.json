@@ -1,0 +1,406 @@
+{
+ "searchResult": {
+  "totalCount": 599,
+  "searchMerchants": [
+   {
+    "id": "2-C4JUG6XVGVMGWE",
+    "address": {
+     "name": "George and Onnie's Filipino Restaurant - Example Branch"
+    },
+    "estimatedDeliveryTime": 34,
+    "merchantBrief": {
+     "description": "Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Sisig",
+      "Sinigang"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "iconHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "08:00-22:30",
+      "sun": "08:00-21:00",
+      "mon": "08:00-22:30",
+      "tue": "08:00-22:30",
+      "wed": "08:00-22:30",
+      "thu": "08:00-22:30",
+      "fri": "08:00-22:30",
+      "sat": "08:00-22:30"
+     },
+     "distanceInKm": 1.5,
+     "rating": 4.4,
+     "vote_count": 1086,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "operationHours": "{\"open\":null,\"close\":[{\"endDateTime\":\"2025-01-02T06:00:00+08:00\",\"hours\":\"Closed\",\"metadata\":{\"description\":\"Paused until next OpenTime by Checkmate\"},\"type\":\"tempPause\"}]}",
+     "displayInfo": {
+      "primaryText": "George and Onnie's Filipino Restaurant - Example Branch",
+      "additionalText": "5% off"
+     },
+     "priceTag": 3,
+     "deliverOptions": "DELIVERY_TAKEAWAY_DINEIN",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp",
+     "iconHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "George and Onnie's Filipino Restaurant",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "highlighted": true,
+     "priceDisplay": "Free Delivery",
+     "status": 130,
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#00B14F'><b>Free</b></font>",
+     "discountedPriceDisplayHtml": "<font color='#00B14F'><b>Free</b></font>"
+    },
+    "dishes": [
+     {
+      "ID": "PHITE20260708232203084154",
+      "name": "Tofu Sisig",
+      "available": true,
+      "priceInMinorUnit": 33000,
+      "imgHref": "https://example.com/photo.webp",
+      "description": "fried firm tofu, kesong puti, shishito peppers, onions, calamansi",
+      "sortOrder": 2005,
+      "discountedPriceInMin": 33000,
+      "priceV2": {
+       "amountInMinor": 33000,
+       "amountDisplay": "330.00"
+      },
+      "discountedPriceV2": {
+       "amountInMinor": 33000,
+       "amountDisplay": "330.00"
+      },
+      "metadata": "{\"external_data\":\"7396_26389_214103\",\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+      "itemAttributes": {
+       "displayedTexts": {}
+      },
+      "discoveryMetadata": {
+       "origin": [
+        "Search"
+       ],
+       "discovery": {
+        "requestID": "<redacted>",
+        "service": "search",
+        "method": "get",
+        "discoverID": "4974597363994cf395141424cb829407"
+       }
+      },
+      "takeawayPriceInMin": 33000,
+      "discountedTakeawayPriceInMin": 33000,
+      "merchantID": "2-C4JUG6XVGVMGWE",
+      "currency": "P",
+      "thumbImages": [
+       "https://example.com/photo.webp"
+      ],
+      "images": [
+       "https://example.com/photo.webp"
+      ]
+     },
+     {
+      "ID": "PHITE20260708232203253831",
+      "name": "Pork Sisig",
+      "available": true,
+      "priceInMinorUnit": 46500,
+      "imgHref": "https://example.com/photo.webp",
+      "description": "Crispy pork, liver mayonnaise, shishito peppers, onions, calamansi",
+      "sortOrder": 802,
+      "discountedPriceInMin": 46500,
+      "priceV2": {
+       "amountInMinor": 46500,
+       "amountDisplay": "465.00"
+      },
+      "discountedPriceV2": {
+       "amountInMinor": 46500,
+       "amountDisplay": "465.00"
+      },
+      "metadata": "{\"external_data\":\"7396_26389_193911\",\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+      "itemAttributes": {
+       "displayedTexts": {}
+      },
+      "discoveryMetadata": {
+       "origin": [
+        "Search"
+       ],
+       "discovery": {
+        "requestID": "<redacted>",
+        "service": "search",
+        "method": "get",
+        "discoverID": "4974597363994cf395141424cb829407"
+       }
+      },
+      "takeawayPriceInMin": 46500,
+      "discountedTakeawayPriceInMin": 46500,
+      "merchantID": "2-C4JUG6XVGVMGWE",
+      "currency": "P",
+      "thumbImages": [
+       "https://example.com/photo.webp"
+      ],
+      "images": [
+       "https://example.com/photo.webp"
+      ]
+     }
+    ],
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱50.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱50.00 off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱50.00 off"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "isFixOrderBranch": true,
+    "estimatedDeliveryTimeRange": "From 34 mins",
+    "icons": {
+     "etaIconName": "FlashFilled",
+     "etaColor": "#00804A"
+    }
+   },
+   {
+    "id": "PHGFSTI000004uu",
+    "address": {
+     "name": "Giligan's Restaurant - Example Branch"
+    },
+    "estimatedDeliveryTime": 53,
+    "merchantBrief": {
+     "description": "You wouldn’t want to miss out the chance to eat delicious, tasty and really affordable food in this trendy restaurant that serves all-time favorite and mouth-watering dishes like sizzling sisig, fried garlic chicken and many more. If you’re dining in a groups, make sure you take advantage of their “...",
+     "cuisine": [
+      "Sisig",
+      "Crispy Pork Leg"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "iconHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "10:00-22:00",
+      "sun": "10:00-22:00",
+      "mon": "10:00-22:00",
+      "tue": "10:00-22:00",
+      "wed": "10:00-22:00",
+      "thu": "10:00-22:00",
+      "fri": "10:00-22:00",
+      "sat": "10:00-22:00"
+     },
+     "distanceInKm": 2.7,
+     "rating": 4.5,
+     "vote_count": 2386,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Giligan's Restaurant - Example Branch",
+      "additionalText": "5% off"
+     },
+     "priceTag": 2,
+     "deliverOptions": "DELIVERY_TAKEAWAY_DINEIN",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp",
+     "iconHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "Giligan's Restaurant",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 500,
+     "priceDisplay": "₱5.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱5.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "dishes": [
+     {
+      "ID": "PHGFSTI000004uu-CZJGAEKJCAJBCJ",
+      "name": "Crunchy Pork Sisig",
+      "available": true,
+      "priceInMinorUnit": 42900,
+      "imgHref": "https://example.com/photo.webp",
+      "description": "Our Best Seller Pork Sisig for more than 25 years",
+      "sortOrder": 15,
+      "discountedPriceInMin": 42900,
+      "priceV2": {
+       "amountInMinor": 42900,
+       "amountDisplay": "429.00"
+      },
+      "discountedPriceV2": {
+       "amountInMinor": 42900,
+       "amountDisplay": "429.00"
+      },
+      "metadata": "{\"discount_meta\":{},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"catalog-backfill\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}},\"keep_unavailable_until\":\"2025-03-18T00:00:00+08:00\"}",
+      "itemAttributes": {
+       "displayedTexts": {},
+       "attributes": {
+        "DishType": {
+         "attributes": [
+          {
+           "id": "ATT-C4ETJXEYCPEWCJ9927",
+           "name": "Mains"
+          }
+         ],
+         "groupID": "ACL-C4ETJXBYFCDJEX9468"
+        }
+       }
+      },
+      "discoveryMetadata": {
+       "origin": [
+        "Search"
+       ],
+       "discovery": {
+        "requestID": "<redacted>",
+        "service": "search",
+        "method": "get",
+        "discoverID": "4974597363994cf395141424cb829407"
+       }
+      },
+      "takeawayPriceInMin": 42900,
+      "discountedTakeawayPriceInMin": 42900,
+      "merchantID": "PHGFSTI000004uu",
+      "currency": "P",
+      "thumbImages": [
+       "https://example.com/photo.webp"
+      ],
+      "images": [
+       "https://example.com/photo.webp"
+      ]
+     },
+     {
+      "ID": "PHITE20220727055849251516",
+      "name": "MP Crunchy Pork Sisig with Rice",
+      "available": true,
+      "priceInMinorUnit": 21500,
+      "imgHref": "https://example.com/photo.webp",
+      "sortOrder": 25,
+      "discountedPriceInMin": 21500,
+      "priceV2": {
+       "amountInMinor": 21500,
+       "amountDisplay": "215.00"
+      },
+      "discountedPriceV2": {
+       "amountInMinor": 21500,
+       "amountDisplay": "215.00"
+      },
+      "metadata": "{\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"catalog-backfill\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+      "itemAttributes": {
+       "displayedTexts": {},
+       "attributes": {
+        "DishType": {
+         "attributes": [
+          {
+           "id": "ATT-C4ETJXLUAUVWEX8898",
+           "name": "Bundle / Set"
+          }
+         ],
+         "groupID": "ACL-C4ETJXBYFCDJEX9468"
+        }
+       }
+      },
+      "discoveryMetadata": {
+       "origin": [
+        "Search"
+       ],
+       "discovery": {
+        "requestID": "<redacted>",
+        "service": "search",
+        "method": "get",
+        "discoverID": "4974597363994cf395141424cb829407"
+       }
+      },
+      "takeawayPriceInMin": 21500,
+      "discountedTakeawayPriceInMin": 21500,
+      "merchantID": "PHGFSTI000004uu",
+      "currency": "P",
+      "thumbImages": [
+       "https://example.com/photo.webp"
+      ],
+      "images": [
+       "https://example.com/photo.webp"
+      ]
+     }
+    ],
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱50.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱50.00 off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱50.00 off"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "littleIconLabel": [
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "Good Service",
+      "labelDescription": "Consistent service quality for a reliable experience everytime",
+      "labelID": "1200004",
+      "labelName": "Good Service",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     }
+    ],
+    "isFixOrderBranch": true,
+    "estimatedDeliveryTimeRange": "From 53 mins",
+    "icons": {
+     "pricingIcon": "PriceDropColoured"
+    }
+   }
+  ],
+  "hasMore": true,
+  "hasDishResult": true,
+  "announcements": [
+   {
+    "desc": "Subscribe to GrabUnlimited for free delivery every day (up to ₱49)",
+    "announcementDetail": {
+     "link": "grab://open?screenType=SUBSCRIPTION_PLAN_DETAIL&sourceID=FOOD_MEXLISTING&sourceCampaignName=Grabunlimited&subscriptionStatus=0&churnStatus=0"
+    },
+    "iconUrl": "https://assets-mobile.grab.com/deliveries/food/food_merchant_list_banner_gu_icon.png",
+    "backgroundUrl": "https://assets-mobile.grab.com/deliveries/food/food_list_gu_banner_background.png",
+    "backgroundColor": "#F3F6FB"
+   }
+  ],
+  "poiBannerHelper": {},
+  "childKeyword": {}
+ }
+}

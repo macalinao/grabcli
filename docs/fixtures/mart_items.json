@@ -1,0 +1,149 @@
+{
+ "hasMore": true,
+ "items": [
+  {
+   "ID": "PHITE202603311718221011314",
+   "name": "Garnier Bright Complete Overnight Serum 30Ml",
+   "available": true,
+   "priceInMinorUnit": 69900,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "GARNIER BC OVERNIGHT",
+   "sortOrder": 1330,
+   "priceV2": {
+    "amountInMinor": 69900,
+    "amountDisplay": "699.00"
+   },
+   "metadata": "{\"external_data\":\"50031375\",\"discounts\":{\"currency_code\":\"PHP\"},\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_FALSE\",\"labels\":[\"teen_a...",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061237013574",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "0"
+    },
+    "itemID": "PHITE202603311718221011314"
+   },
+   "takeawayPriceInMin": 69900,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "50031375",
+   "collectionIDs": [
+    34378,
+    34441,
+    33821
+   ]
+  },
+  {
+   "ID": "PHITE20260331171429539900",
+   "name": "CETAPHIL SKIN CLEANSER 60ML",
+   "available": true,
+   "priceInMinorUnit": 18500,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "CETAPHIL SKIN CLEANSER 60ML",
+   "sortOrder": 1055,
+   "priceV2": {
+    "amountInMinor": 18500,
+    "amountDisplay": "185.00"
+   },
+   "metadata": "{\"external_data\":\"10003657\",\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061151019195",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "1"
+    },
+    "itemID": "PHITE20260331171429539900"
+   },
+   "takeawayPriceInMin": 18500,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "10003657"
+  },
+  {
+   "ID": "PHITE20260331172234151556",
+   "name": "Acne Patch For Day and Night 1 box",
+   "available": true,
+   "priceInMinorUnit": 22900,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "DERMA ANGEL ACNE PATCH FOR DAY N NIGHT",
+   "sortOrder": 427,
+   "priceV2": {
+    "amountInMinor": 22900,
+    "amountDisplay": "229.00"
+   },
+   "metadata": "{\"external_data\":\"50011718\",\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_FALSE\",\"labels\":[\"teen_tobacco_ar\"]}}}}",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061330011815",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "2"
+    },
+    "itemID": "PHITE20260331172234151556"
+   },
+   "takeawayPriceInMin": 22900,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "50011718",
+   "collectionIDs": [
+    31593
+   ]
+  }
+ ],
+ "subDepartments": [
+  {
+   "id": "2-C221R641CXWGEE-PHITEDP20260225061151019195",
+   "name": "Facial Cleanser",
+   "sortOrder": 11
+  },
+  {
+   "id": "2-C221R641CXWGEE-PHITEDP20260225061237013574",
+   "name": "Facial Moisturizer",
+   "sortOrder": 9
+  },
+  {
+   "id": "2-C221R641CXWGEE-PHITEDP20260225061306013827",
+   "name": "Facial Toner",
+   "sortOrder": 7
+  }
+ ],
+ "nextOffset": 20,
+ "sortAndFiltersV2": {
+  "options": {},
+  "possibility": true
+ }
+}

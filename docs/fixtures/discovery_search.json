@@ -1,0 +1,343 @@
+{
+ "searchResult": {
+  "totalCount": 260,
+  "searchMerchants": [
+   {
+    "id": "AWkxrGp0cEjWIUmPtEPk",
+    "address": {
+     "name": "McDonald's - Example Branch"
+    },
+    "estimatedDeliveryTime": 29,
+    "merchantBrief": {
+     "cuisine": [
+      "Western",
+      "Burger"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "00:00-23:30",
+      "sun": "00:00-23:30",
+      "mon": "00:30-23:30",
+      "tue": "00:00-23:30",
+      "wed": "00:00-23:30",
+      "thu": "05:00-23:30",
+      "fri": "00:00-23:30",
+      "sat": "00:00-23:30"
+     },
+     "distanceInKm": 1.2,
+     "rating": 4.1,
+     "vote_count": 5509,
+     "promo": {
+      "hasPromo": true,
+      "description": "Enjoy up to 120 off with Group Order"
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "McDonald's - Example Branch",
+      "additionalText": "5% off"
+     },
+     "priceTag": 1,
+     "deliverOptions": "DELIVERY_TAKEAWAY_DINEIN",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "McDonald's",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 4200,
+     "priceDisplay": "₱42.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱42.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱50.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱50.00 off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱50.00 off"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "customLabel": [
+     {
+      "labelType": 1,
+      "backgroundColor": "#F76708",
+      "text": "GRABUNLIMITED",
+      "labelID": "PHCLID20230120064924011859",
+      "labelName": "GRABUNLIMITED"
+     }
+    ],
+    "estimatedDeliveryTimeRange": "From 29 mins",
+    "icons": {
+     "etaIconName": "FlashFilled",
+     "etaColor": "#00804A"
+    }
+   },
+   {
+    "id": "2-CYLTTU4VC7WXCT",
+    "address": {
+     "name": "Jollibee - Example Branch"
+    },
+    "estimatedDeliveryTime": 38,
+    "merchantBrief": {
+     "cuisine": [
+      "Fried Chicken",
+      "Burger"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "00:00-23:59",
+      "sun": "00:00-23:59",
+      "mon": "00:00-23:59",
+      "tue": "00:00-23:59",
+      "wed": "00:00-23:59",
+      "thu": "00:00-23:59",
+      "fri": "00:00-23:59",
+      "sat": "00:00-23:59"
+     },
+     "distanceInKm": 1.8,
+     "rating": 4.4,
+     "vote_count": 5129,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Jollibee - Example Branch",
+      "additionalText": "5% off"
+     },
+     "priceTag": 1,
+     "deliverOptions": "ONLY_DELIVERY",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "Jollibee",
+    "branchMerchants": [
+     {
+      "id": "2-CYLTTU4VC7WXCT",
+      "address": {
+       "name": "Jollibee - Example Branch"
+      },
+      "_trimmed": "branch entries have the same shape as the parent merchant"
+     }
+    ],
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 4700,
+     "priceDisplay": "₱47.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱47.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱159.00 off Delivery</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱159.00 off Delivery",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱159.00 off Delivery"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "customLabel": [
+     {
+      "labelType": 5,
+      "backgroundColor": "#CCF2FF",
+      "text": "Top Service",
+      "url": "https://example.com/photo.webp",
+      "labelID": "1200003",
+      "labelName": "Top Service",
+      "type": "FoodAuthority",
+      "fontColor": "#0B54A8",
+      "icon": "QualityHeroColoured",
+      "deeplink": "grab://open?screenType=GRABFOOD&campaignLandingID=26117&headerColor=B3EBFF&headerSize=medium"
+     }
+    ],
+    "littleIconLabel": [
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "Top Service",
+      "labelDescription": "Excellent service - always available, on-time, perfect orders",
+      "labelID": "1200003",
+      "labelName": "Top Service",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     },
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "Good Service",
+      "labelDescription": "Consistent service quality for a reliable experience everytime",
+      "labelID": "1200004",
+      "labelName": "Good Service",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     }
+    ],
+    "estimatedDeliveryTimeRange": "From 38 mins"
+   },
+   {
+    "id": "2-C75VLTA2JFW2CT",
+    "address": {
+     "name": "Mang Inasal - Example Branch"
+    },
+    "estimatedDeliveryTime": 36,
+    "merchantBrief": {
+     "description": "Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Grilled Chicken Inasal",
+      "Chicken"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "08:30-22:15",
+      "sun": "08:30-21:30",
+      "mon": "07:30-22:30",
+      "tue": "07:30-19:00",
+      "wed": "Closed",
+      "thu": "Closed",
+      "fri": "09:00-22:30",
+      "sat": "08:30-22:15"
+     },
+     "distanceInKm": 2.5,
+     "rating": 4.5,
+     "vote_count": 431,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Mang Inasal - Example Branch",
+      "additionalText": "5% off"
+     },
+     "deliverOptions": "DELIVERY_TAKEAWAY",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "Mang Inasal",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 4600,
+     "priceDisplay": "₱46.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱46.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱50.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱50.00 off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱50.00 off"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "customLabel": [
+     {
+      "labelType": 5,
+      "backgroundColor": "#CCF2FF",
+      "text": "Top Service",
+      "url": "https://example.com/photo.webp",
+      "labelID": "1200003",
+      "labelName": "Top Service",
+      "type": "FoodAuthority",
+      "fontColor": "#0B54A8",
+      "icon": "QualityHeroColoured",
+      "deeplink": "grab://open?screenType=GRABFOOD&campaignLandingID=26117&headerColor=B3EBFF&headerSize=medium"
+     }
+    ],
+    "littleIconLabel": [
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "Top Service",
+      "labelDescription": "Excellent service - always available, on-time, perfect orders",
+      "labelID": "1200003",
+      "labelName": "Top Service",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     }
+    ],
+    "estimatedDeliveryTimeRange": "From 36 mins"
+   }
+  ],
+  "hasMore": true,
+  "announcements": [
+   {
+    "desc": "Subscribe to GrabUnlimited for free delivery every day (up to ₱49)",
+    "announcementDetail": {
+     "link": "grab://open?screenType=SUBSCRIPTION_PLAN_DETAIL&sourceID=FOOD_MEXLISTING&sourceCampaignName=Grabunlimited&subscriptionStatus=0&churnStatus=0"
+    },
+    "iconUrl": "https://assets-mobile.grab.com/deliveries/food/food_merchant_list_banner_gu_icon.png",
+    "backgroundUrl": "https://assets-mobile.grab.com/deliveries/food/food_list_gu_banner_background.png",
+    "backgroundColor": "#F3F6FB"
+   }
+  ],
+  "poiBannerHelper": {},
+  "childKeyword": {}
+ }
+}

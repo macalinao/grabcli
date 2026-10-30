@@ -1,0 +1,89 @@
+{
+ "item": {
+  "ID": "PHITE20260805063620080508",
+  "name": "Red Bull Energy Drink 4 x 250ml",
+  "available": true,
+  "priceInMinorUnit": 33900,
+  "imgHref": "https://example.com/photo.webp",
+  "sortOrder": 10000,
+  "discountedPriceInMin": 33900,
+  "priceV2": {
+   "amountInMinor": 33900,
+   "amountDisplay": "339.00"
+  },
+  "discountedPriceV2": {
+   "amountInMinor": 33900,
+   "amountDisplay": "339.00"
+  },
+  "metadata": "{\"external_data\":\"99842\",\"max_count\":50,\"weight\":{\"value\":250,\"unit\":\"ml\",\"count\":4,\"source\":5},\"sold_by_weight\":true,\"m...",
+  "itemClassID": "PHITEDP20200717034546012640",
+  "takeawayPriceInMin": 33900,
+  "discountedTakeawayPriceInMin": 33900,
+  "merchantID": "2-C6AZTLAEAKCFVT",
+  "searchMeta": {},
+  "thumbImages": [
+   "https://example.com/photo.webp"
+  ],
+  "images": [
+   "https://example.com/photo.webp"
+  ],
+  "parentItemClassID": "2-C6AZTLAEAKCFVT-PHITEDP20200716054842010880",
+  "barcode": "99842",
+  "itemAttributeGroupsV2": [
+   {
+    "title": "Item details",
+    "collapseThreshold": -1,
+    "attributes": [
+     {
+      "id": "Brand",
+      "title": "Brand",
+      "content": "Red Bull",
+      "htmlContent": "Brand <b>Red Bull</b>"
+     },
+     {
+      "id": "Storage Instructions",
+      "title": "Storage Instructions",
+      "content": "Itago sa isang malamig at tuyong lugar.",
+      "htmlContent": "Storage Instructions <b>Itago sa isang malamig at tuyong lugar.</b>"
+     },
+     {
+      "id": "Flavors",
+      "title": "Flavors",
+      "content": "Orihinal",
+      "htmlContent": "Flavors <b>Orihinal</b>"
+     },
+     {
+      "id": "Packaging Format",
+      "title": "Packaging Format",
+      "content": "Lata",
+      "htmlContent": "Packaging Format <b>Lata</b>"
+     },
+     {
+      "id": "size",
+      "title": "Size",
+      "content": "About 4 x 250ml",
+      "htmlContent": "Size <b>About 4 x 250ml</b>"
+     }
+    ],
+    "type": "product_details"
+   }
+  ],
+  "soAvailable": true
+ },
+ "merchant": {
+  "ID": "2-C6AZTLAEAKCFVT",
+  "name": "S&R - Example Branch",
+  "cuisine": "Grocery Supermarket",
+  "ETA": 70,
+  "openingHours": {
+   "displayedHours": "Closed"
+  },
+  "distanceInKm": 1.6,
+  "address": {
+   "name": "S&R - Example Branch",
+   "combined_address": "1 Example St, Example City",
+   "combined_city": "Example City",
+   "city": "Example City"
+  }
+ }
+}

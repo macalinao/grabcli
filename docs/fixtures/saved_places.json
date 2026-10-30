@@ -1,0 +1,52 @@
+{
+  "places": [
+    {
+      "poiID": "POI-HOME-EXAMPLE",
+      "address": "1 Example St, Example City",
+      "location": { "latitude": 1.23, "longitude": 4.56 },
+      "name": "Example Tower",
+      "label": "HOME_TAG_PRESET",
+      "city": "Example City",
+      "cityID": "4",
+      "country": "Philippines",
+      "countryID": "2",
+      "countryCode": "PH"
+    },
+    {
+      "poiID": "POI-WORK-EXAMPLE",
+      "address": "2 Sample Ave, Example City",
+      "location": { "latitude": 1.25, "longitude": 4.58 },
+      "name": "Sample Office",
+      "label": "WORK_TAG_PRESET",
+      "city": "Example City",
+      "cityID": "4",
+      "country": "Philippines",
+      "countryID": "2",
+      "countryCode": "PH"
+    },
+    {
+      "poiID": "POI-GYM-EXAMPLE",
+      "address": "3 Test Rd, Sample Town",
+      "location": { "latitude": 2.34, "longitude": 5.67 },
+      "name": "Test Gym",
+      "label": "Gym",
+      "city": "Sample Town",
+      "cityID": "5",
+      "country": "Thailand",
+      "countryID": "3",
+      "countryCode": "TH"
+    },
+    {
+      "poiID": "POI-OTHER-EXAMPLE",
+      "address": "4 Demo Lane, Example City",
+      "location": { "latitude": 1.2, "longitude": 4.5 },
+      "name": "Example Plaza",
+      "label": "",
+      "city": "Example City",
+      "cityID": "4",
+      "country": "Philippines",
+      "countryID": "2",
+      "countryCode": "PH"
+    }
+  ]
+}

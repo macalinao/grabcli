@@ -1,0 +1,100 @@
+{
+ "recommendedMerchantGroups": [
+  {
+   "feature": "N",
+   "recommendedMerchants": [
+    {
+     "id": "2-CYM3EZLHTNVGNT",
+     "address": {
+      "name": "McDonald's - Example Branch"
+     },
+     "distanceInKm": 4.5,
+     "merchantData": {
+      "photo_href": "https://example.com/photo.webp",
+      "photo_small_href": "https://example.com/photo.webp",
+      "estimated_delivery_time": 45,
+      "service_hours": {
+       "open": true,
+       "displayedHours": "00:00-23:59",
+       "sun": "00:00-23:59",
+       "mon": "00:00-23:59",
+       "tue": "00:00-23:59",
+       "wed": "00:00-23:59",
+       "thu": "00:00-23:59",
+       "fri": "00:00-23:59",
+       "sat": "00:00-23:59"
+      },
+      "isIntegrated": true,
+      "rating": 4.2,
+      "vote_count": 14830,
+      "promo": {
+       "hasPromo": true,
+       "description": "Enjoy up to 120 off with Group Order"
+      },
+      "priceTag": 1
+     }
+    },
+    {
+     "id": "2-CY2CR65HUF5JPE",
+     "address": {
+      "name": "Jollibee - Example Branch"
+     },
+     "distanceInKm": 6.8,
+     "merchantData": {
+      "photo_href": "https://example.com/photo.webp",
+      "photo_small_href": "https://example.com/photo.webp",
+      "icon_href": "https://example.com/photo.webp",
+      "estimated_delivery_time": 50,
+      "service_hours": {
+       "open": true,
+       "displayedHours": "00:00-23:59",
+       "sun": "00:00-22:45",
+       "mon": "06:00-23:59",
+       "tue": "00:00-23:59",
+       "wed": "00:00-23:59",
+       "thu": "00:00-23:59",
+       "fri": "00:00-23:59",
+       "sat": "00:00-23:59"
+      },
+      "isIntegrated": true,
+      "rating": 4.4,
+      "vote_count": 16710,
+      "priceTag": 1
+     }
+    },
+    {
+     "id": "2-CYMHN7CYCKA3UE",
+     "address": {
+      "name": "Chowking - Example Branch"
+     },
+     "distanceInKm": 7.1,
+     "merchantData": {
+      "photo_href": "https://example.com/photo.webp",
+      "photo_small_href": "https://example.com/photo.webp",
+      "icon_href": "https://example.com/photo.webp",
+      "estimated_delivery_time": 50,
+      "service_hours": {
+       "open": true,
+       "displayedHours": "00:00-23:59",
+       "sun": "00:00-23:59",
+       "mon": "00:00-23:59",
+       "tue": "00:00-23:59",
+       "wed": "00:00-23:59",
+       "thu": "00:00-23:59",
+       "fri": "00:00-23:59",
+       "sat": "00:00-23:59"
+      },
+      "isIntegrated": true,
+      "rating": 4.5,
+      "vote_count": 12131,
+      "promo": {
+       "hasPromo": true,
+       "description": "Php50 OFF w/ code CHOWKING50, min. order of P699"
+      },
+      "priceTag": 1
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,275 @@
+{
+ "hasMore": true,
+ "items": [
+  {
+   "ID": "PHITE20260805063620080508",
+   "name": "Red Bull Energy Drink 4 x 250ml",
+   "available": true,
+   "priceInMinorUnit": 33900,
+   "imgHref": "https://example.com/photo.webp",
+   "sortOrder": 10000,
+   "priceV2": {
+    "amountInMinor": 33900,
+    "amountDisplay": "339.00"
+   },
+   "metadata": "{\"external_data\":\"99842\",\"max_count\":50,\"weight\":{\"value\":250,\"unit\":\"ml\",\"count\":4,\"source\":5},\"sold_by_weight\":true,\"m...",
+   "itemAttributes": {
+    "maxCount": 50,
+    "displayedTexts": {
+     "weight": "About 4 x 250ml"
+    }
+   },
+   "itemClassID": "PHITEDP20200717034546012640",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "0"
+    },
+    "itemID": "PHITE20260805063620080508"
+   },
+   "takeawayPriceInMin": 33900,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "99842",
+   "soAvailable": true
+  },
+  {
+   "ID": "PHITE20260805062941037384",
+   "name": "Red Bull Energy Drink 4 cans",
+   "available": true,
+   "priceInMinorUnit": 33900,
+   "imgHref": "https://example.com/photo.webp",
+   "sortOrder": 10000,
+   "priceV2": {
+    "amountInMinor": 33900,
+    "amountDisplay": "339.00"
+   },
+   "metadata": "{\"external_data\":\"79097\",\"max_count\":50,\"weight\":{\"value\":1,\"unit\":\"per pack\",\"count\":4,\"source\":5},\"sold_by_weight\":tru...",
+   "itemAttributes": {
+    "maxCount": 50,
+    "displayedTexts": {
+     "weight": "About 4 x 1per pack"
+    }
+   },
+   "itemClassID": "PHITEDP20200717034546012640",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "1"
+    },
+    "itemID": "PHITE20260805062941037384"
+   },
+   "takeawayPriceInMin": 33900,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "79097",
+   "soAvailable": true
+  },
+  {
+   "ID": "PHITE20260805062544076142",
+   "name": "Monster Ultra Energy Assorted",
+   "available": true,
+   "priceInMinorUnit": 14500,
+   "imgHref": "https://example.com/photo.webp",
+   "sortOrder": 10015,
+   "priceV2": {
+    "amountInMinor": 14500,
+    "amountDisplay": "145.00"
+   },
+   "metadata": "{\"external_data\":\"60479\",\"max_count\":50,\"weight\":{\"value\":473,\"unit\":\"ml\",\"count\":1,\"source\":5},\"sold_by_weight\":true,\"t...",
+   "itemAttributes": {
+    "maxCount": 50,
+    "displayedTexts": {
+     "weight": "About 473ml"
+    }
+   },
+   "itemClassID": "PHITEDP20200717034546012640",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "2"
+    },
+    "itemID": "PHITE20260805062544076142"
+   },
+   "takeawayPriceInMin": 14500,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "60479",
+   "soAvailable": true
+  },
+  {
+   "ID": "PHITE20260805063217069532",
+   "name": "Monster Energy Drink 473mL",
+   "available": true,
+   "priceInMinorUnit": 14400,
+   "imgHref": "https://example.com/photo.webp",
+   "sortOrder": 10013,
+   "priceV2": {
+    "amountInMinor": 14400,
+    "amountDisplay": "144.00"
+   },
+   "metadata": "{\"external_data\":\"19769\",\"max_count\":50,\"weight\":{\"value\":473,\"unit\":\"ml\",\"count\":1,\"source\":5},\"sold_by_weight\":true,\"m...",
+   "itemAttributes": {
+    "maxCount": 50,
+    "displayedTexts": {
+     "weight": "About 473ml"
+    }
+   },
+   "itemClassID": "PHITEDP20200717034546012640",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "3"
+    },
+    "itemID": "PHITE20260805063217069532"
+   },
+   "takeawayPriceInMin": 14400,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "19769",
+   "soAvailable": true
+  },
+  {
+   "ID": "PHITE20260805062238085929",
+   "name": "Lego Oracle Red Bull Racing Car",
+   "available": true,
+   "priceInMinorUnit": 199900,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "Build and display a high-performance racing model with the LEGO Oracle Red Bull Racing Car. Designed with intricate details, it captures the essence of the iconic racing team. Perfect for both play and display, this set encourages creativity, focus, and hands-on building fun. A great addition to any LEGO collection, it’s ideal for fans of motorsports and model building alike.",
+   "sortOrder": 10002,
+   "priceV2": {
+    "amountInMinor": 199900,
+    "amountDisplay": "1,999.00"
+   },
+   "metadata": "{\"external_data\":\"155647\",\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food...",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20200720021146013316",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "4"
+    },
+    "itemID": "PHITE20260805062238085929"
+   },
+   "takeawayPriceInMin": 199900,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "155647",
+   "soAvailable": true
+  },
+  {
+   "ID": "PHITE20231204094559066356",
+   "name": "Pocari Sweat 6 bottles",
+   "available": true,
+   "priceInMinorUnit": 27200,
+   "imgHref": "https://example.com/photo.webp",
+   "sortOrder": 9966,
+   "priceV2": {
+    "amountInMinor": 27200,
+    "amountDisplay": "272.00"
+   },
+   "metadata": "{\"external_data\":\"48553\",\"max_count\":50,\"weight\":{\"value\":500,\"unit\":\"ml\",\"count\":1},\"sold_by_weight\":true,\"discounts\":{...",
+   "itemAttributes": {
+    "maxCount": 50,
+    "displayedTexts": {
+     "weight": "About 500ml"
+    }
+   },
+   "itemClassID": "PHITEDP20200717034546012640",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "<redacted>",
+     "itemRank": "5"
+    },
+    "itemID": "PHITE20231204094559066356"
+   },
+   "takeawayPriceInMin": 27200,
+   "merchantID": "2-C6AZTLAEAKCFVT",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "48553",
+   "soAvailable": true,
+   "collectionIDs": [
+    32638,
+    32726
+   ]
+  }
+ ],
+ "nextOffset": 20,
+ "totalCount": 294,
+ "subDepartments": [
+  {
+   "itemClassID": "CATTREE-CTN-109676B60B1845F781",
+   "name": "Beverages"
+  },
+  {
+   "itemClassID": "CATTREE-CTN-63E476C8C30D485B97",
+   "name": "Dairy; Chilled Food & Eggs"
+  },
+  {
+   "itemClassID": "CATTREE-CTN-827B10E4AE81431EAA",
+   "name": "Hobbies & Collections"
+  }
+ ],
+ "sortAndFiltersV2": {
+  "options": {},
+  "possibility": true
+ },
+ "retrieveID": "<redacted>",
+ "requestID": "<redacted>"
+}

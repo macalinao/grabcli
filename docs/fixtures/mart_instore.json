@@ -1,0 +1,163 @@
+{
+ "hasMore": true,
+ "items": [
+  {
+   "ID": "PHITE20260331172323540613",
+   "name": "LUXE ORGANIX AQUA DLYSNSCRN SPF50 50ML",
+   "available": true,
+   "priceInMinorUnit": 34900,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "LUXE ORGANIX AQUA DLYSNSCRN SPF50 50ML",
+   "sortOrder": 211,
+   "priceV2": {
+    "amountInMinor": 34900,
+    "amountDisplay": "349.00"
+   },
+   "metadata": "{\"external_data\":\"50011966\",\"discounts\":{\"currency_code\":\"PHP\"},\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_FALSE\",\"labels\":[\"teen_t...",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061356018080",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "0"
+    },
+    "itemID": "PHITE20260331172323540613"
+   },
+   "takeawayPriceInMin": 34900,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "50011966",
+   "soAvailable": true,
+   "collectionIDs": [
+    34744,
+    34378,
+    33821
+   ]
+  },
+  {
+   "ID": "PHITE20260331172400706496",
+   "name": "Ponds White Beauty Daily Whitening Sun Protect SPF50 30g",
+   "available": true,
+   "priceInMinorUnit": 32500,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "PONDS WB WHTNG SUN PROTECT SPF50 30G",
+   "sortOrder": 76,
+   "priceV2": {
+    "amountInMinor": 32500,
+    "amountDisplay": "325.00"
+   },
+   "metadata": "{\"external_data\":\"50020294\",\"discounts\":{\"currency_code\":\"PHP\"},\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061356018080",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "1"
+    },
+    "itemID": "PHITE20260331172400706496"
+   },
+   "takeawayPriceInMin": 32500,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "50020294",
+   "soAvailable": true,
+   "collectionIDs": [
+    33821,
+    31593,
+    33356
+   ]
+  },
+  {
+   "ID": "PHITE20260623162131333410",
+   "name": "NEUTROGENA Ultra Sheer Sunscreen SPF 50 PA++++ 40ml",
+   "available": true,
+   "priceInMinorUnit": 92600,
+   "imgHref": "https://example.com/photo.webp",
+   "description": "NEUTROGENA Ultra Sheer Sunscreen SPF 50 PA++++ 40ml",
+   "sortOrder": 57,
+   "priceV2": {
+    "amountInMinor": 92600,
+    "amountDisplay": "926.00"
+   },
+   "metadata": "{\"external_data\":\"50058410\",\"discounts\":{\"currency_code\":\"PHP\"},\"tag_operators\":{\"item_class_id\":0},\"moderation\":{\"status\":\"PASS\",\"mode\":\"AUTO\",\"client\":\"food-cms-api\",\"againstFields\":{},\"streamStatus\":\"PASSED\",\"tagIDFields\":{\"teenCompliance\":{\"value\":\"TEEN_COMPLIANCE_STATUS_TRUE\"}}}}",
+   "itemAttributes": {
+    "displayedTexts": {}
+   },
+   "itemClassID": "PHITEDP20260225061718014929",
+   "discoveryMetadata": {
+    "discovery": {
+     "requestID": "<redacted>",
+     "service": "food-dataservice",
+     "method": "GetMerchantActiveItems",
+     "discoverID": "null",
+     "itemRank": "2"
+    },
+    "itemID": "PHITE20260623162131333410"
+   },
+   "takeawayPriceInMin": 92600,
+   "merchantID": "2-C221R641CXWGEE",
+   "searchMeta": {},
+   "thumbImages": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "images": [
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp",
+    "https://example.com/photo.webp"
+   ],
+   "barcode": "50058410",
+   "soAvailable": true,
+   "collectionIDs": [
+    33821,
+    33356,
+    34444
+   ]
+  }
+ ],
+ "nextOffset": 20,
+ "totalCount": 276,
+ "subDepartments": [
+  {
+   "itemClassID": "CATTREE-CTN-CB4553588D354EB398",
+   "name": "Beauty & Personal Care"
+  }
+ ],
+ "sortAndFiltersV2": {
+  "options": {},
+  "possibility": true
+ },
+ "retrieveID": "<redacted>",
+ "requestID": "<redacted>"
+}

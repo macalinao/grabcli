@@ -1,0 +1,231 @@
+{
+ "categoryName": "Japanese",
+ "categoryImageURL": "https://example.com/photo.webp",
+ "categoryDescription": "-",
+ "searchResult": {
+  "totalCount": 116,
+  "searchMerchants": [
+   {
+    "id": "2-C4CXGAC2N6TDRA",
+    "address": {
+     "name": "Kyu Kyu Ramen 99 - Example Branch"
+    },
+    "estimatedDeliveryTime": 45,
+    "merchantBrief": {
+     "description": "Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Japanese",
+      "Ramen"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "iconHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "11:00-22:45",
+      "sun": "11:00-21:45",
+      "mon": "11:00-21:45",
+      "tue": "11:00-21:45",
+      "wed": "11:00-21:45",
+      "thu": "11:00-21:45",
+      "fri": "11:00-22:45",
+      "sat": "11:00-22:45"
+     },
+     "distanceInKm": 2.2,
+     "rating": 4.5,
+     "vote_count": 274,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Kyu Kyu Ramen 99 - Example Branch",
+      "additionalText": "5% off"
+     },
+     "priceTag": 1,
+     "deliverOptions": "DELIVERY_TAKEAWAY_DINEIN",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp",
+     "iconHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "Kyu Kyu Ramen 99",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 4900,
+     "priceDisplay": "₱49.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱49.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>5% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "5% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "5% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱25.00 off Delivery</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱25.00 off Delivery",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱25.00 off Delivery"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "customLabel": [
+     {
+      "labelType": 5,
+      "backgroundColor": "#FFEC8F",
+      "text": "5-Star Eats",
+      "url": "https://example.com/photo.webp",
+      "labelID": "1200002",
+      "labelName": "5 Star Eats",
+      "type": "FoodAuthority",
+      "fontColor": "#005339",
+      "icon": "StarFilled",
+      "deeplink": "grab://open?screenType=GRABFOOD&campaignLandingID=19140&landingSource=foodAuthority&isNewTask=true"
+     }
+    ],
+    "littleIconLabel": [
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "5-Star Eats",
+      "labelDescription": "Best-tasting, top-rated food based on millions of real user reviews.",
+      "labelID": "1200002",
+      "labelName": "5 Star Eats",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     }
+    ],
+    "estimatedDeliveryTimeRange": "From 45 mins"
+   },
+   {
+    "id": "2-C32URBDBE8JTGX",
+    "address": {
+     "name": "Watami - Example Branch"
+    },
+    "estimatedDeliveryTime": 47,
+    "merchantBrief": {
+     "description": "Prices are all VAT inclusive. Prices may also vary or be subject to change by the merchant.",
+     "cuisine": [
+      "Japanese",
+      "Sushi"
+     ],
+     "photoHref": "https://example.com/photo.webp",
+     "smallPhotoHref": "https://example.com/photo.webp",
+     "iconHref": "https://example.com/photo.webp",
+     "isIntegrated": true,
+     "openHours": {
+      "open": true,
+      "displayedHours": "09:50-22:00",
+      "sun": "09:50-22:00",
+      "mon": "09:50-22:00",
+      "tue": "09:50-22:00",
+      "wed": "09:50-22:00",
+      "thu": "09:50-22:00",
+      "fri": "09:50-22:00",
+      "sat": "09:50-22:00"
+     },
+     "distanceInKm": 2.9,
+     "rating": 4.2,
+     "vote_count": 176,
+     "promo": {
+      "hasPromo": true
+     },
+     "deliverBy": "GRAB",
+     "displayInfo": {
+      "primaryText": "Watami - Example Branch",
+      "additionalText": "20% off"
+     },
+     "priceTag": 2,
+     "deliverOptions": "DELIVERY_TAKEAWAY_DINEIN",
+     "photoHrefFallback": "https://example.com/photo.webp",
+     "smallPhotoHrefFallback": "https://example.com/photo.webp",
+     "iconHrefFallback": "https://example.com/photo.webp"
+    },
+    "chainName": "Watami",
+    "branchName": "Example Branch",
+    "estimatedDeliveryFee": {
+     "currency": {
+      "code": "PHP",
+      "symbol": "₱",
+      "exponent": 2
+     },
+     "price": 500,
+     "priceDisplay": "₱5.00",
+     "multiplier": 1,
+     "priceDisplayHtml": "<font color='#F88530'>Free </font><font color='#707070'><del>₱5.00</del></font>",
+     "hasDiscountedPrice": true,
+     "discountedPriceDisplayHtml": "<font color='#F88530'>Free </font>"
+    },
+    "sideLabels": {
+     "data": [
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>20% off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "20% off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "20% off"
+      },
+      {
+       "type": "omegaPromoTag",
+       "displayedTextHtmlFormat": "<font color='#1A1A1A'>₱130.00 off</font>",
+       "backgroundColor": "FFF4EB",
+       "displayedText": "₱130.00 off",
+       "icon": "https://assets-mobile.grab.com/deliveries/food/food_promo_des_icon_new@3x.png",
+       "shortDisplayedTag": "₱130.00 off"
+      }
+     ],
+     "metadata": {}
+    },
+    "businessType": "FOOD",
+    "littleIconLabel": [
+     {
+      "littleIconLabelURL": "https://example.com/photo.webp",
+      "labelText": "Good Service",
+      "labelDescription": "Consistent service quality for a reliable experience everytime",
+      "labelID": "1200004",
+      "labelName": "Good Service",
+      "labelType": 2,
+      "type": "FoodAuthority"
+     }
+    ],
+    "estimatedDeliveryTimeRange": "From 47 mins",
+    "icons": {
+     "pricingIcon": "PriceDropColoured"
+    }
+   }
+  ],
+  "hasMore": true,
+  "announcements": [
+   {
+    "desc": "Subscribe to GrabUnlimited for free delivery every day (up to ₱49)",
+    "announcementDetail": {
+     "link": "grab://open?screenType=SUBSCRIPTION_PLAN_DETAIL&sourceID=FOOD_MEXLISTING&sourceCampaignName=Grabunlimited&subscriptionStatus=0&churnStatus=0"
+    },
+    "iconUrl": "https://assets-mobile.grab.com/deliveries/food/food_merchant_list_banner_gu_icon.png",
+    "backgroundUrl": "https://assets-mobile.grab.com/deliveries/food/food_list_gu_banner_background.png",
+    "backgroundColor": "#F3F6FB"
+   }
+  ],
+  "poiBannerHelper": {},
+  "childKeyword": {}
+ },
+ "shortcutID": "89",
+ "categoryImageURLFallback": "https://example.com/photo.webp"
+}
