@@ -4,58 +4,22 @@
 //! exceeds `[cache] image_max_mb` (default 500), the least recently used files
 //! are evicted.
 //!
-//! Images are fetched without cookies or any session headers, and only from
-//! Grab's CDN hosts ([`image_url_allowed`]). Originals are stored as-is: Grab
+//! Images are fetched (by `grabcli_core::cache::CacheHandle::fetch_image`)
+//! without cookies or any session headers, and only from Grab's CDN hosts. Originals are stored as-is: Grab
 //! mostly serves AVIF/WebP, which the pure-Rust `image` crate can't decode
 //! (AVIF) or only encode losslessly (WebP), so there is no thumbnailing;
 //! width/height are recorded for PNG/JPEG only.
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
+use grabcli_core::Error;
+use grabcli_core::cache::{CachedImage, hex_sha256};
 use rusqlite::{Connection, OptionalExtension, params};
-use serde::Serialize;
 
-use super::db::create_private_dirs;
-use super::{Cache, ImageStats, hex_sha256};
-use crate::error::{Error, ErrorKind, Result};
-use crate::jwt;
-
-/// Largest image we will download.
-const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
-
-/// A cached image file.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct CachedImage {
-    pub url: String,
-    pub path: PathBuf,
-    pub hash: String,
-    pub bytes: u64,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub content_type: String,
-    /// True if served from the store without downloading.
-    pub cached: bool,
-}
-
-/// Only `https://` URLs on `grab.com` or a subdomain (the CDNs:
-/// `food-cms.grab.com`, `huawei-food-cms.grab.com`, `assets-mobile.grab.com`,
-/// …), with no credentials or custom port.
-pub fn image_url_allowed(url: &str) -> bool {
-    let Ok(u) = reqwest::Url::parse(url) else {
-        return false;
-    };
-    let host_ok = u
-        .host_str()
-        .map(str::to_ascii_lowercase)
-        .is_some_and(|h| h == "grab.com" || h.ends_with(".grab.com"));
-    u.scheme() == "https"
-        && host_ok
-        && u.username().is_empty()
-        && u.password().is_none()
-        && u.port().is_none()
-}
+use crate::db::create_private_dirs;
+use crate::err::{DbError, Result};
+use crate::{ImageStats, SqliteCache};
 
 fn ext_for(content_type: &str) -> &'static str {
     match content_type
@@ -129,7 +93,7 @@ fn to_cached(root: &Path, url: &str, row: ImageRow, cached: bool) -> CachedImage
     let (hash, bytes, w, h, ct) = row;
     CachedImage {
         url: url.to_string(),
-        path: file_path(root, &hash, &ct),
+        path: Some(file_path(root, &hash, &ct)),
         hash,
         bytes: u64::try_from(bytes).unwrap_or(0),
         width: w.and_then(|v| u32::try_from(v).ok()),
@@ -197,21 +161,14 @@ pub(crate) fn clear(conn: &Connection, root: &Path) -> Result<u64> {
     Ok(n)
 }
 
-impl Cache {
+impl SqliteCache {
     /// The cached file for `url`, if present (and still on disk). Marks it
     /// recently used.
-    pub fn cached_image(&self, url: &str) -> Option<CachedImage> {
-        self.cached_image_at(url, jwt::now())
-    }
-
-    fn cached_image_at(&self, url: &str, now: i64) -> Option<CachedImage> {
-        if !self.mode.reads() && !self.mode.writes() {
-            return None;
-        }
+    pub fn cached_image_at(&self, url: &str, now: i64) -> Option<CachedImage> {
         let conn = self.conn().ok()?;
         let row = row_for(&conn, url).ok()??;
         let img = to_cached(&self.root, url, row, true);
-        if !img.path.exists() {
+        if !img.path.as_ref().is_some_and(|p| p.exists()) {
             let _ = conn.execute("DELETE FROM images WHERE url = ?1", [url]);
             return None;
         }
@@ -224,10 +181,6 @@ impl Cache {
 
     /// Store downloaded image bytes for `url` (dedupes by content hash), then
     /// evict over the size cap.
-    pub fn store_image(&self, url: &str, bytes: &[u8], content_type: &str) -> Result<CachedImage> {
-        self.store_image_at(url, bytes, content_type, jwt::now())
-    }
-
     pub fn store_image_at(
         &self,
         url: &str,
@@ -235,9 +188,6 @@ impl Cache {
         content_type: &str,
         now: i64,
     ) -> Result<CachedImage> {
-        if !self.mode.writes() {
-            return Err(Error::invalid("the cache is off; images are not stored"));
-        }
         let hash = hex_sha256(bytes);
         let path = file_path(&self.root, &hash, content_type);
         if !path.exists() {
@@ -270,68 +220,19 @@ impl Cache {
         )?;
         evict(&conn, &self.root, self.config.image_max_bytes())?;
         let row = row_for(&conn, url)?
-            .ok_or_else(|| Error::invalid("image is larger than the image cache cap"))?;
+            .ok_or_else(|| DbError(Error::invalid("image is larger than the image cache cap")))?;
         Ok(to_cached(&self.root, url, row, false))
-    }
-
-    /// The cached file for `url`, downloading it first if needed. Only Grab
-    /// CDN URLs are fetched ([`image_url_allowed`]); no cookies are sent.
-    pub async fn fetch_image(&self, url: &str) -> Result<CachedImage> {
-        if !image_url_allowed(url) {
-            return Err(Error::new(
-                ErrorKind::UrlNotAllowed,
-                "only https image URLs on grab.com hosts can be cached",
-            ));
-        }
-        if let Some(hit) = self.cached_image(url) {
-            return Ok(hit);
-        }
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
-        let resp = client.get(url).send().await?;
-        let status = resp.status();
-        if !status.is_success() {
-            return Err(Error::new(
-                if status.as_u16() == 404 {
-                    ErrorKind::NotFound
-                } else {
-                    ErrorKind::Api
-                },
-                format!("{} fetching image", status.as_u16()),
-            ));
-        }
-        let content_type = resp
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string();
-        if !content_type.to_ascii_lowercase().starts_with("image/") {
-            return Err(Error::new(
-                ErrorKind::Api,
-                format!("not an image (content-type `{content_type}`)"),
-            ));
-        }
-        if resp
-            .content_length()
-            .is_some_and(|l| l > MAX_IMAGE_BYTES as u64)
-        {
-            return Err(Error::invalid("image is too large"));
-        }
-        let bytes = resp.bytes().await?;
-        if bytes.len() > MAX_IMAGE_BYTES {
-            return Err(Error::invalid("image is too large"));
-        }
-        self.store_image(url, &bytes, &content_type)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cache::{CacheConfig, CacheMode};
+    use grabcli_core::cache::{CacheConfig, image_url_allowed};
+
+    fn exists(i: &CachedImage) -> bool {
+        i.path.as_ref().is_some_and(|p| p.exists())
+    }
 
     #[test]
     fn url_allowlist() {
@@ -353,21 +254,21 @@ mod tests {
         let img = image::RgbImage::new(w, h);
         let mut out = std::io::Cursor::new(Vec::new());
         img.write_to(&mut out, image::ImageFormat::Png)
-            .map_err(|e| Error::invalid(e.to_string()))?;
+            .map_err(|e| DbError(Error::invalid(e.to_string())))?;
         Ok(out.into_inner())
     }
 
     #[test]
     fn store_dedupes_and_records_dimensions() -> Result<()> {
         let dir = tempfile::tempdir()?;
-        let c = Cache::new(dir.path(), CacheConfig::default(), CacheMode::Normal);
+        let c = SqliteCache::new(dir.path(), CacheConfig::default());
         let bytes = png(3, 2)?;
         let a = c.store_image_at("https://food-cms.grab.com/a.png", &bytes, "image/png", 10)?;
         let b = c.store_image_at("https://food-cms.grab.com/b.png", &bytes, "image/png", 11)?;
         assert_eq!(a.path, b.path);
         assert_eq!((a.width, a.height), (Some(3), Some(2)));
-        assert!(a.path.exists());
-        assert!(a.path.to_string_lossy().contains(&format!(
+        assert!(exists(&a));
+        assert!(a.path.clone().unwrap_or_default().to_string_lossy().contains(&format!(
             "images/{}/{}/{}.png",
             &a.hash[0..2],
             &a.hash[2..4],
@@ -377,13 +278,13 @@ mod tests {
         assert_eq!((s.images.files, s.images.urls), (1, 2));
         assert_eq!(s.images.bytes, bytes.len() as u64);
         let hit = c
-            .cached_image("https://food-cms.grab.com/a.png")
-            .ok_or_else(|| Error::not_found("a"))?;
+            .cached_image_at("https://food-cms.grab.com/a.png", 12)
+            .ok_or_else(|| DbError(Error::not_found("a")))?;
         assert!(hit.cached);
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(fs::metadata(&a.path)?.permissions().mode() & 0o777, 0o600);
+            assert_eq!(fs::metadata(a.path.clone().unwrap_or_default())?.permissions().mode() & 0o777, 0o600);
         }
         Ok(())
     }
@@ -396,47 +297,34 @@ mod tests {
             image_max_mb: Some(1),
             ..CacheConfig::default()
         };
-        let c = Cache::new(dir.path(), cfg, CacheMode::Normal);
+        let c = SqliteCache::new(dir.path(), cfg);
         let blob = |n: u8| vec![n; 400 * 1024];
         let url = |n: u8| format!("https://food-cms.grab.com/{n}.webp");
         let first = c.store_image_at(&url(1), &blob(1), "image/webp", 100)?;
         c.store_image_at(&url(2), &blob(2), "image/webp", 200)?;
         // Touch #1 so #2 becomes the least recently used.
         c.cached_image_at(&url(1), 300)
-            .ok_or_else(|| Error::not_found("1"))?;
+            .ok_or_else(|| DbError(Error::not_found("1")))?;
         c.store_image_at(&url(3), &blob(3), "image/webp", 400)?;
-        assert!(c.cached_image(&url(1)).is_some());
-        assert!(c.cached_image(&url(2)).is_none());
-        assert!(c.cached_image(&url(3)).is_some());
-        assert!(first.path.exists());
+        assert!(c.cached_image_at(&url(1), 401).is_some());
+        assert!(c.cached_image_at(&url(2), 401).is_none());
+        assert!(c.cached_image_at(&url(3), 401).is_some());
+        assert!(exists(&first));
         let s = c.stats_at(400)?;
         assert_eq!(s.images.files, 2);
         assert!(s.images.bytes <= 1024 * 1024);
 
         // A cap below one image: prune evicts down to it.
-        let tiny = Cache::new(
+        let tiny = SqliteCache::new(
             dir.path(),
             CacheConfig {
                 image_max_mb: Some(0),
                 ..CacheConfig::default()
             },
-            CacheMode::Normal,
         );
         let r = tiny.prune_at(500)?;
         assert_eq!(r.images_evicted, 2);
-        assert!(!first.path.exists());
-        Ok(())
-    }
-
-    #[test]
-    fn off_mode_stores_nothing() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let c = Cache::new(dir.path(), CacheConfig::default(), CacheMode::Off);
-        assert!(
-            c.store_image("https://food-cms.grab.com/a.png", b"x", "image/png")
-                .is_err()
-        );
-        assert!(c.cached_image("https://food-cms.grab.com/a.png").is_none());
+        assert!(!exists(&first));
         Ok(())
     }
 }
