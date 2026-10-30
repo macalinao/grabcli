@@ -5,7 +5,6 @@
 
 use std::collections::HashSet;
 
-use bpaf::Bpaf;
 use grabcli_core::money::Money;
 use serde_json::{Value, json};
 
@@ -467,46 +466,48 @@ impl std::str::FromStr for Pesos {
 }
 
 /// Filters and sorting (applied client-side to the fetched pages):
-#[derive(Debug, Clone, Default, Bpaf)]
+/// With the `cli` feature this also derives the bpaf parser `list_opts()`.
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "cli", derive(bpaf::Bpaf))]
 pub struct ListOpts {
     /// Only merchants that are open now.
-    #[bpaf(long("open"), switch)]
+    #[cfg_attr(feature = "cli", bpaf(long("open"), switch))]
     pub open: bool,
     /// Minimum rating (e.g. 4.5).
-    #[bpaf(long("min-rating"), argument("X"))]
+    #[cfg_attr(feature = "cli", bpaf(long("min-rating"), argument("X")))]
     pub min_rating: Option<f64>,
     /// Maximum delivery fee in pesos, after discounts.
-    #[bpaf(long("max-fee"), argument("PESOS"))]
+    #[cfg_attr(feature = "cli", bpaf(long("max-fee"), argument("PESOS")))]
     pub max_fee: Option<Pesos>,
     /// Maximum delivery ETA in minutes.
-    #[bpaf(long("max-eta"), argument("MIN"))]
+    #[cfg_attr(feature = "cli", bpaf(long("max-eta"), argument("MIN")))]
     pub max_eta: Option<i64>,
     /// Maximum price level, 1 (cheap) to 3.
-    #[bpaf(long("price-level"), argument("N"))]
+    #[cfg_attr(feature = "cli", bpaf(long("price-level"), argument("N")))]
     pub price_level: Option<i64>,
     /// Only merchants with a promo.
-    #[bpaf(long("promo"), switch)]
+    #[cfg_attr(feature = "cli", bpaf(long("promo"), switch))]
     pub promo: bool,
     /// Only merchants with free delivery.
-    #[bpaf(long("free-delivery"), switch)]
+    #[cfg_attr(feature = "cli", bpaf(long("free-delivery"), switch))]
     pub free_delivery: bool,
     /// Only merchants with this cuisine (case-insensitive substring).
-    #[bpaf(long("cuisine"), argument("NAME"))]
+    #[cfg_attr(feature = "cli", bpaf(long("cuisine"), argument("NAME")))]
     pub cuisine: Option<String>,
     /// Maximum distance in km.
-    #[bpaf(long("max-distance"), argument("KM"))]
+    #[cfg_attr(feature = "cli", bpaf(long("max-distance"), argument("KM")))]
     pub max_distance: Option<f64>,
     /// food or mart (Grab mixes mart stores into food results).
-    #[bpaf(long("type"), argument("TYPE"))]
+    #[cfg_attr(feature = "cli", bpaf(long("type"), argument("TYPE")))]
     pub business_type: Option<BizType>,
     /// relevance (default), rating, eta, fee, distance or price.
-    #[bpaf(long("sort"), argument("KEY"), fallback(Sort::Relevance))]
+    #[cfg_attr(feature = "cli", bpaf(long("sort"), argument("KEY"), fallback(Sort::Relevance)))]
     pub sort: Sort,
     /// Show at most N results.
-    #[bpaf(long("limit"), argument("N"))]
+    #[cfg_attr(feature = "cli", bpaf(long("limit"), argument("N")))]
     pub limit: Option<usize>,
     /// Upstream pages to pull (paced to respect Grab's rate limit).
-    #[bpaf(long("pages"), argument("N"), fallback(1))]
+    #[cfg_attr(feature = "cli", bpaf(long("pages"), argument("N"), fallback(1)))]
     pub pages: u32,
 }
 

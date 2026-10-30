@@ -1,10 +1,8 @@
-//! The local cart: one merchant at a time, stored as JSON in the state dir
-//! (`<state>/food/cart.json`). Validated against the live menu before quoting.
-
-use std::path::PathBuf;
+//! A GrabFood cart: one merchant at a time, validated against the live menu
+//! before quoting. The library passes carts by value; where one is kept is
+//! the caller's choice (the `grab` CLI stores `<state>/food/cart.json`).
 
 use grabcli_core::error::{Error, ErrorKind, Result};
-use grabcli_core::paths;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -43,33 +41,6 @@ pub struct Cart {
 }
 
 impl Cart {
-    pub fn path() -> Result<PathBuf> {
-        Ok(paths::state_dir()?.join("food").join("cart.json"))
-    }
-
-    pub fn load() -> Result<Self> {
-        let p = Self::path()?;
-        match std::fs::read(&p) {
-            Ok(b) => Ok(serde_json::from_slice(&b)?),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    pub fn save(&self) -> Result<()> {
-        let p = Self::path()?;
-        paths::write_atomic(&p, &serde_json::to_vec_pretty(self)?)
-    }
-
-    pub fn clear() -> Result<()> {
-        let p = Self::path()?;
-        match std::fs::remove_file(&p) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(e.into()),
-        }
-    }
-
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }

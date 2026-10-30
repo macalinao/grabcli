@@ -3,21 +3,22 @@
 //!
 //! - Public browse calls mint a fresh reCAPTCHA token per request (only on a
 //!   cache miss) and are cached under namespace `"mart"`.
-//! - Calls are paced (≥ [`MIN_GAP`] apart, across processes via a timestamp
-//!   file) because the mart API answers 429 after ~10 quick calls. A 429 on a
+//! - Calls are paced (≥ [`MIN_GAP`] apart) through a [`Pacer`]: in-process
+//!   by default ([`MemoryPacer`]); the CLI paces across processes with a
+//!   timestamp file. Needed because the mart API answers 429 after ~10 quick calls. A 429 on a
 //!   read-only GET is retried once after a back-off, then surfaced clearly.
 //! - The cart/quote call is never cached and never retried here.
 
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
+use async_trait::async_trait;
 use grabcli_core::Context;
-use grabcli_core::cache::{CacheKey, CacheMode};
-use grabcli_core::config::Config;
+use grabcli_core::cache::CacheKey;
 use grabcli_core::error::{Error, ErrorKind, Result};
 use grabcli_core::http::{Hydra, Request};
+use grabcli_core::jwt;
 use grabcli_core::location::Location;
-use grabcli_core::output::Output;
-use grabcli_core::{jwt, paths};
 use serde_json::Value;
 
 use crate::{api, recaptcha};
@@ -35,6 +36,42 @@ pub struct Mart {
     pub ctx: Context,
     pub loc: Location,
     cdp: String,
+    pacer: Arc<dyn Pacer>,
+    /// Print rate-limit retry notices to stderr (the CLI's human mode).
+    pub notices: bool,
+}
+
+/// Spaces mart API calls at least [`MIN_GAP`] apart.
+#[async_trait]
+pub trait Pacer: Send + Sync {
+    /// Sleep until the next call may go out, then record it.
+    async fn wait(&self);
+}
+
+/// Paces calls made through this process only.
+#[derive(Debug, Default)]
+pub struct MemoryPacer {
+    last: Mutex<Option<Instant>>,
+}
+
+#[async_trait]
+impl Pacer for MemoryPacer {
+    async fn wait(&self) {
+        let wait = {
+            let last = self
+                .last
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            last.map(|t| MIN_GAP.saturating_sub(t.elapsed()))
+        };
+        if let Some(w) = wait.filter(|w| !w.is_zero()) {
+            tokio::time::sleep(w).await;
+        }
+        *self
+            .last
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Instant::now());
+    }
 }
 
 /// Headers the mart web app sends (besides cookies/UA from the core client).
@@ -44,32 +81,6 @@ fn mart_headers() -> Vec<(String, String)> {
         ("referer".into(), format!("{}/", api::ORIGIN)),
         ("x-country-code".into(), "PH".into()),
     ]
-}
-
-fn pace_path() -> Result<std::path::PathBuf> {
-    Ok(paths::state_dir()?.join("mart").join("last-call"))
-}
-
-/// Sleep so consecutive mart calls (in this or other `grab` processes) are at
-/// least [`MIN_GAP`] apart, then record this call. Best-effort.
-async fn pace() {
-    let now_ms = || {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0)
-    };
-    if let Ok(p) = pace_path() {
-        let last: i64 = std::fs::read_to_string(&p)
-            .ok()
-            .and_then(|s| s.trim().parse().ok())
-            .unwrap_or(0);
-        let wait = MIN_GAP.as_millis() as i64 - (now_ms() - last);
-        if wait > 0 {
-            tokio::time::sleep(Duration::from_millis(wait as u64)).await;
-        }
-        let _ = paths::write_atomic(&p, now_ms().to_string().as_bytes());
-    }
 }
 
 /// Re-word core errors for the mart API.
@@ -107,14 +118,29 @@ fn mart_auth_err(e: Error) -> Error {
 }
 
 impl Mart {
-    /// Build a client. `cache` applies to browse calls; the quote path passes
-    /// [`CacheMode::Off`].
-    pub fn new(out: Output, cache: CacheMode) -> Result<Self> {
-        let cfg = Config::load(&paths::config_path()?)?;
-        let ctx = Context::new(out, api::allowlist(cfg.allow_ordering))?.with_cache_mode(cache);
+    /// Build a client over `ctx`, registering the mart allowlist (the order
+    /// URL only when `allow_ordering` is set). The context's cache mode
+    /// applies to browse calls; use [`CacheMode::Off`](grabcli_core::CacheMode)
+    /// for the quote/order path.
+    pub fn new(ctx: Context) -> Result<Self> {
+        let allow = api::allowlist(ctx.config.allow_ordering);
+        let ctx = ctx.with_allowlist(&allow)?;
         let loc = Location::from_session(ctx.session())?;
         let cdp = ctx.cdp_base();
-        Ok(Self { ctx, loc, cdp })
+        Ok(Self {
+            ctx,
+            loc,
+            cdp,
+            pacer: Arc::new(MemoryPacer::default()),
+            notices: false,
+        })
+    }
+
+    /// Use another [`Pacer`] (e.g. one shared across processes).
+    #[must_use]
+    pub fn with_pacer(mut self, pacer: Arc<dyn Pacer>) -> Self {
+        self.pacer = pacer;
+        self
     }
 
     /// A cache key in the mart namespace at the saved delivery location.
@@ -136,7 +162,7 @@ impl Mart {
     pub async fn fetch_public(&mut self, url: &str, action: &str) -> Result<Value> {
         let mut attempt = 0;
         loop {
-            pace().await;
+            self.pacer.wait().await;
             let token = recaptcha::mint(&self.cdp, action).await?;
             let mut req = Request::get(url, Hydra::NotNeeded);
             req.extra_headers = mart_headers();
@@ -144,7 +170,7 @@ impl Mart {
             match self.ctx.call(&req).await {
                 Err(e) if e.kind == ErrorKind::RateLimited && attempt == 0 => {
                     attempt += 1;
-                    if !self.ctx.out.is_json() {
+                    if self.notices {
                         eprintln!(
                             "GrabMart rate limit (429); retrying once in {}s…",
                             RETRY_AFTER_429.as_secs()
@@ -179,7 +205,7 @@ impl Mart {
     pub async fn quote_call(&mut self, body: Value) -> Result<Value> {
         let mut mart_login_done = self.ensure_mart_session().await?;
         loop {
-            pace().await;
+            self.pacer.wait().await;
             let mut req = Request::post(api::CART, body.clone(), Hydra::Required).no_refresh();
             req.extra_headers = mart_headers();
             match self.ctx.call(&req).await {

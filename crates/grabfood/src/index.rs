@@ -2,7 +2,7 @@
 //! menu categories, items) and catalog rows back into [`Merchant`]s for
 //! `--local` results. Indexing is best-effort: callers ignore its errors.
 
-use grabcli_core::cache::{Cache, CategoryRow, ItemHit, ItemRow, RestaurantHit, RestaurantRow};
+use grabcli_core::cache::{CacheHandle, CategoryRow, ItemHit, ItemRow, RestaurantHit, RestaurantRow};
 use grabcli_core::money::Money;
 use serde_json::Value;
 
@@ -55,7 +55,7 @@ pub fn item_row(d: &Dish) -> ItemRow {
 
 /// Upsert a fetched list page: merchants (and chain branches) with a sighting
 /// from the delivery location, and their dish hits as menu items.
-pub fn index_merchants(cache: &Cache, merchants: &[Merchant], seen_from: (f64, f64)) {
+pub async fn index_merchants(cache: &CacheHandle, merchants: &[Merchant], seen_from: (f64, f64)) {
     let mut rows = Vec::new();
     let mut items = Vec::new();
     for m in merchants {
@@ -63,8 +63,8 @@ pub fn index_merchants(cache: &Cache, merchants: &[Merchant], seen_from: (f64, f
         rows.extend(m.branches.iter().map(restaurant_row));
         items.extend(m.dishes.iter().map(item_row));
     }
-    let _ = cache.index_restaurants(&rows, Some(seen_from));
-    let _ = cache.index_items(&items);
+    let _ = cache.index_restaurants(&rows, Some(seen_from)).await;
+    let _ = cache.index_items(&items).await;
 }
 
 fn s(v: &Value, ptr: &str) -> Option<String> {
@@ -175,9 +175,9 @@ pub fn menu_rows(root: &Value) -> Option<(RestaurantRow, Vec<CategoryRow>, Vec<I
 }
 
 /// Upsert a fetched menu.
-pub fn index_menu(cache: &Cache, root: &Value, seen_from: (f64, f64)) {
+pub async fn index_menu(cache: &CacheHandle, root: &Value, seen_from: (f64, f64)) {
     if let Some((r, cats, items)) = menu_rows(root) {
-        let _ = cache.index_menu(&r, &cats, &items, Some(seen_from));
+        let _ = cache.index_menu(&r, &cats, &items, Some(seen_from)).await;
     }
 }
 
@@ -239,7 +239,9 @@ pub fn dish_from_hit(h: &ItemHit) -> Dish {
 mod tests {
     use super::*;
     use crate::discover::{parse_recommended, parse_search_page};
+    use grabcli_core::cache::memory::MemoryCache;
     use grabcli_core::cache::{CacheConfig, CacheMode, ItemQuery, Near, RestaurantQuery};
+    use std::sync::Arc;
     use grabcli_core::error::Result;
     use serde_json::json;
 
@@ -257,37 +259,42 @@ mod tests {
         })
     }
 
-    #[test]
-    fn fixtures_index_into_catalog() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let cache = Cache::new(dir.path(), CacheConfig::default(), CacheMode::Normal);
+    #[tokio::test]
+    async fn fixtures_index_into_catalog() -> Result<()> {
+        let cache = CacheHandle::new(
+            Arc::new(MemoryCache::default()),
+            CacheConfig::default(),
+            CacheMode::Normal,
+        );
         for raw in [
             include_str!("../../../docs/fixtures/discovery_search.json"),
             include_str!("../../../docs/fixtures/discovery_search_dishes.json"),
             include_str!("../../../docs/fixtures/discovery_category.json"),
         ] {
-            index_merchants(&cache, &parse_search_page(&fixture(raw)).merchants, HOME);
+            index_merchants(&cache, &parse_search_page(&fixture(raw)).merchants, HOME).await;
         }
         let rec = parse_recommended(&fixture(include_str!(
             "../../../docs/fixtures/discovery_recommended.json"
         )));
-        index_merchants(&cache, &rec.merchants, HOME);
+        index_merchants(&cache, &rec.merchants, HOME).await;
 
-        let s = cache.stats()?;
-        assert!(s.tables["restaurants"] >= 10, "{:?}", s.tables);
-        assert!(s.tables["menu_items"] > 0);
-        assert_eq!(s.tables["restaurants"], s.tables["restaurant_locations"]);
+        let all = cache
+            .search_restaurants(&RestaurantQuery::default())
+            .await?;
+        assert!(all.len() >= 10, "{}", all.len());
+        assert!(!cache.search_items(&ItemQuery::default()).await?.is_empty());
 
         // Restaurant text search (cuisine) near home.
         let japanese = cache.search_restaurants(&RestaurantQuery {
             text: Some("japanese".into()),
             near: near(6.0),
             ..RestaurantQuery::default()
-        })?;
+        })
+        .await?;
         assert!(japanese.iter().any(|h| h.row.id == "2-C4CXGAC2N6TDRA"));
         // Recommended rows kept the richer fields from search (rating) and
         // gained nothing wrong; recommended-only rows exist too.
-        assert!(cache.restaurant("2-CYM3EZLHTNVGNT")?.is_some());
+        assert!(cache.restaurant("2-CYM3EZLHTNVGNT").await?.is_some());
 
         // Dishes under ₱300 near home, partial match.
         let cheap = cache.search_items(&ItemQuery {
@@ -295,7 +302,8 @@ mod tests {
             near: near(6.0),
             max_price_minor: Some(30_000),
             ..ItemQuery::default()
-        })?;
+        })
+        .await?;
         assert!(!cheap.is_empty());
         for hit in &cheap {
             let d = dish_from_hit(hit);

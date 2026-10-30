@@ -13,17 +13,17 @@ authors.workspace = true
 
 [dependencies]
 grabcli-core.workspace = true
-bpaf.workspace = true
+bpaf = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 sha1.workspace = true
 sha2.workspace = true
-image.workspace = true
-imageproc.workspace = true
-ab_glyph.workspace = true
-reqwest.workspace = true
 tokio.workspace = true
 urlencoding.workspace = true
+
+[features]
+# The bpaf parser for `ListOpts` (used by the `grab` CLI).
+cli = ["dep:bpaf"]
 
 [dev-dependencies]
 tempfile.workspace = true
