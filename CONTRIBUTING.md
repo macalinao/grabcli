@@ -28,6 +28,13 @@ Arguments are parsed with `bpaf` (derive). Money is integer minor units.
   before adding it.
 - Be gentle with Grab's API: no tight polling, back off on `429`.
 
+## Releasing
+
+Releases are automated with [release-plz](https://release-plz.dev). Every push
+to `master` opens or updates a release PR that bumps versions and changelogs.
+Merging it publishes the changed crates to crates.io via trusted publishing and
+tags the release.
+
 ## License
 
 grabcli is licensed under the [Apache License, Version 2.0](LICENSE.txt).

@@ -12,12 +12,11 @@ readme = "README.md"
 keywords = ["grab", "grabfood", "cli", "food-delivery", "philippines"]
 categories = ["command-line-utilities"]
 authors = ["Ian Macalinao <me@ianm.com>"]
-publish = false
 
 [workspace.dependencies]
-grabcli-core = { path = "crates/grabcli-core" }
-grabfood = { path = "crates/grabfood" }
-grabmart = { path = "crates/grabmart" }
+grabcli-core = { path = "crates/grabcli-core", version = "0.1.0" }
+grabfood = { path = "crates/grabfood", version = "0.1.0" }
+grabmart = { path = "crates/grabmart", version = "0.1.0" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"
